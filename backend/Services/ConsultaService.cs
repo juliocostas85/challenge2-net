@@ -57,6 +57,9 @@ public class ConsultaService : IConsultaService
             Motivo = request.Motivo.Trim()
         };
 
+        if (consulta.FechaHora <= Ahora)
+            return Resultado<Consulta>.Invalido("La consulta debe agendarse en una fecha y hora futura.");
+
         var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId);
         if (afiliado == null)
             return Resultado<Consulta>.NoEncontrado("Afiliado no encontrado.");
