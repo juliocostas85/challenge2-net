@@ -19,11 +19,19 @@ public interface IConsultaService
 public class ConsultaService : IConsultaService
 {
     private readonly AppDbContext _context;
+    private readonly TimeProvider _tiempo;
 
-    public ConsultaService(AppDbContext context)
+    public ConsultaService(AppDbContext context, TimeProvider tiempo)
     {
         _context = context;
+        _tiempo = tiempo;
     }
+
+    /// <summary>
+    /// Hora local de la clínica. Las fechas de consulta llegan desde el frontend como hora local
+    /// (input datetime-local, sin zona), por lo que todas las comparaciones se hacen en hora local.
+    /// </summary>
+    private DateTime Ahora => _tiempo.GetLocalNow().DateTime;
 
     public Task<List<Consulta>> ObtenerTodasAsync() =>
         _context.Consultas
@@ -57,7 +65,7 @@ public class ConsultaService : IConsultaService
         if (consultaConflicto)
             return Resultado<Consulta>.Invalido("El profesional ya tiene una consulta en ese horario.");
 
-        consulta.FechaCreacion = DateTime.UtcNow;
+        consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;
         _context.Consultas.Add(consulta);
         await _context.SaveChangesAsync();
@@ -69,7 +77,7 @@ public class ConsultaService : IConsultaService
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return Resultado<Consulta>.NoEncontrado();
 
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
+        if (consulta.FechaHora - Ahora < TimeSpan.FromHours(24))
             return Resultado<Consulta>.Invalido("No se puede cancelar con menos de 24 horas de anticipación.");
 
         consulta.Estado = EstadoConsulta.Cancelado;
@@ -82,7 +90,7 @@ public class ConsultaService : IConsultaService
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return Resultado<Consulta>.NoEncontrado();
 
-        if (consulta.FechaHora > DateTime.Now)
+        if (consulta.FechaHora > Ahora)
             return Resultado<Consulta>.Invalido("No se puede registrar una inasistencia sobre una consulta futura.");
 
         consulta.Estado = EstadoConsulta.Inasistencia;

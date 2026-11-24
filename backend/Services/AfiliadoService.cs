@@ -16,11 +16,19 @@ public interface IAfiliadoService
 public class AfiliadoService : IAfiliadoService
 {
     private readonly AppDbContext _context;
+    private readonly TimeProvider _tiempo;
 
-    public AfiliadoService(AppDbContext context)
+    public AfiliadoService(AppDbContext context, TimeProvider tiempo)
     {
         _context = context;
+        _tiempo = tiempo;
     }
+
+    /// <summary>
+    /// Hora local de la clínica. Las fechas de consulta llegan desde el frontend como hora local
+    /// (input datetime-local, sin zona), por lo que todas las comparaciones se hacen en hora local.
+    /// </summary>
+    private DateTime Ahora => _tiempo.GetLocalNow().DateTime;
 
     public Task<List<Afiliado>> ObtenerTodosAsync() => _context.Afiliados.ToListAsync();
 
@@ -28,7 +36,7 @@ public class AfiliadoService : IAfiliadoService
 
     public async Task<Resultado<Afiliado>> CrearAsync(Afiliado afiliado)
     {
-        afiliado.createdAt = DateTime.UtcNow;
+        afiliado.createdAt = Ahora;
         afiliado.isActive = true;
         _context.Afiliados.Add(afiliado);
         await _context.SaveChangesAsync();
