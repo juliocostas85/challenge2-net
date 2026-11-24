@@ -66,7 +66,7 @@ public class ConsultasController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = consulta.Id }, consulta);
     }
 
-    [HttpGet("cancelar/{id}")]
+    [HttpPut("cancelar/{id}")]
     public async Task<IActionResult> CancelarConsulta(int id)
     {
         var consulta = await _context.Consultas.FindAsync(id);
