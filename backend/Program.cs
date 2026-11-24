@@ -53,6 +53,16 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Cualquier excepción no controlada se registra en el log y responde 500 con el mismo formato
+// { mensaje } que el resto de la API, sin exponer detalles internos al cliente.
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    app.Logger.LogError(error, "Error no controlado en {Metodo} {Ruta}", context.Request.Method, context.Request.Path);
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    await context.Response.WriteAsJsonAsync(new { mensaje = "Ocurrió un error inesperado. Intentá nuevamente." });
+}));
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
