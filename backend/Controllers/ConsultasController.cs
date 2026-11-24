@@ -35,7 +35,9 @@ public class ConsultasController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor.ToResponse());
     }
 
-    [HttpPut("cancelar/{id}")]
+    // Las acciones sobre una consulta comparten la forma POST /consultas/{id}/<acción>.
+    // Antes la cancelación era la única con la acción antes del id (PUT /consultas/cancelar/{id}).
+    [HttpPost("{id}/cancelacion")]
     public async Task<IActionResult> CancelarConsulta(int id) =>
         this.ToActionResult(await _consultas.CancelarAsync(id), c => c.ToResponse());
 
