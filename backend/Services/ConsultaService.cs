@@ -81,6 +81,13 @@ public class ConsultaService : IConsultaService
         if (consultaConflicto)
             return Resultado<Consulta>.Invalido("El profesional ya tiene una consulta en ese horario.");
 
+        var afiliadoOcupado = await _context.Consultas.AnyAsync(c =>
+            c.AfiliadoId == consulta.AfiliadoId &&
+            c.FechaHora == consulta.FechaHora &&
+            c.Estado != EstadoConsulta.Cancelado);
+        if (afiliadoOcupado)
+            return Resultado<Consulta>.Invalido("El afiliado ya tiene una consulta en ese horario.");
+
         consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;
         _context.Consultas.Add(consulta);

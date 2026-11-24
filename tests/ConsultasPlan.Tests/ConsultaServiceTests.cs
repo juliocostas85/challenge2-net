@@ -69,6 +69,28 @@ public class ConsultaServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Afiliado_no_puede_tener_dos_consultas_a_la_misma_hora_con_distintos_profesionales()
+    {
+        var afiliado = _db.AgregarAfiliado();
+        _db.AgregarConsulta(afiliado, _db.AgregarProfesional("Cardiología"), Ahora.AddDays(2));
+
+        var resultado = await _servicio.CrearAsync(Pedido(afiliado.Id, _db.AgregarProfesional().Id, Ahora.AddDays(2)));
+
+        Assert.Equal(TipoResultado.Invalido, resultado.Tipo);
+    }
+
+    [Fact]
+    public async Task Una_consulta_cancelada_libera_el_horario_del_afiliado()
+    {
+        var afiliado = _db.AgregarAfiliado();
+        _db.AgregarConsulta(afiliado, _db.AgregarProfesional("Cardiología"), Ahora.AddDays(2), EstadoConsulta.Cancelado);
+
+        var resultado = await _servicio.CrearAsync(Pedido(afiliado.Id, _db.AgregarProfesional().Id, Ahora.AddDays(2)));
+
+        Assert.True(resultado.EsOk);
+    }
+
+    [Fact]
     public async Task Cambio_generico_de_estado_no_reactiva_una_consulta_cancelada()
     {
         var consulta = _db.AgregarConsulta(_db.AgregarAfiliado(), _db.AgregarProfesional(), Ahora.AddDays(5), EstadoConsulta.Cancelado);
