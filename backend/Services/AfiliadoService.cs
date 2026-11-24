@@ -35,7 +35,7 @@ public class AfiliadoService : IAfiliadoService
 
     /// <summary>Solo afiliados activos. Los dados de baja se conservan para preservar su historial.</summary>
     public Task<List<Afiliado>> ObtenerTodosAsync() =>
-        _context.Afiliados.Where(a => a.isActive).ToListAsync();
+        _context.Afiliados.Where(a => a.IsActive).ToListAsync();
 
     public async Task<Afiliado?> ObtenerPorIdAsync(int id) => await _context.Afiliados.FindAsync(id);
 
@@ -50,8 +50,8 @@ public class AfiliadoService : IAfiliadoService
             DNI = request.DNI.Trim(),
             Email = request.Email.Trim(),
             Telefono = request.Telefono.Trim(),
-            createdAt = Ahora,
-            isActive = true
+            CreatedAt = Ahora,
+            IsActive = true
         };
         _context.Afiliados.Add(afiliado);
         if (!await GuardarRespetandoDniUnicoAsync())
@@ -63,7 +63,7 @@ public class AfiliadoService : IAfiliadoService
     {
         var existing = await _context.Afiliados.FindAsync(id);
         if (existing == null) return Resultado<Afiliado>.NoEncontrado();
-        if (!existing.isActive)
+        if (!existing.IsActive)
             return Resultado<Afiliado>.Conflicto("El afiliado está dado de baja y no puede modificarse.");
 
         var errorDni = await ValidarDniDisponibleAsync(datos.DNI.Trim(), idExcluido: id);
@@ -98,7 +98,7 @@ public class AfiliadoService : IAfiliadoService
         foreach (var consulta in consultasFuturas.Where(c => ConsultaTransiciones.PuedeCancelarsePorBaja(c, ahora)))
             consulta.Estado = EstadoConsulta.Cancelado;
 
-        afiliado.isActive = false;
+        afiliado.IsActive = false;
         await _context.SaveChangesAsync(); // baja y cancelaciones en una única transacción
         return Resultado<Afiliado>.Ok(afiliado);
     }
@@ -135,7 +135,7 @@ public class AfiliadoService : IAfiliadoService
         var existente = await _context.Afiliados
             .FirstOrDefaultAsync(a => a.DNI == dni && (idExcluido == null || a.Id != idExcluido));
         if (existente == null) return null;
-        return existente.isActive
+        return existente.IsActive
             ? "Ya existe un afiliado con ese DNI."
             : "Ya existe un afiliado dado de baja con ese DNI.";
     }

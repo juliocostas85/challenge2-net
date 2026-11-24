@@ -11,6 +11,6 @@ public class Afiliado
     public int ConsultasUsadas { get; set; }
     public bool Bloqueado { get; set; }
     public DateTime? FechaBloqueo { get; set; }
-    public DateTime createdAt { get; set; }
-    public bool isActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public bool IsActive { get; set; }
 }

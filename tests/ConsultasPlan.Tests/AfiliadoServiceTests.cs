@@ -30,7 +30,7 @@ public class AfiliadoServiceTests : IDisposable
         var resultado = await _servicio.EliminarAsync(afiliado.Id);
 
         Assert.True(resultado.EsOk);
-        Assert.False(_db.Context.Afiliados.Find(afiliado.Id)!.isActive);
+        Assert.False(_db.Context.Afiliados.Find(afiliado.Id)!.IsActive);
         Assert.Equal(afiliado.Id, _db.Context.Consultas.Find(consulta.Id)!.AfiliadoId);
         Assert.DoesNotContain(await _servicio.ObtenerTodosAsync(), a => a.Id == afiliado.Id);
     }
@@ -90,7 +90,7 @@ public class AfiliadoServiceTests : IDisposable
     {
         // Simula otra alta con el mismo DNI que todavía no estaba en la base cuando se validó:
         // queda pendiente en el contexto y se guarda junto con esta, como en una carrera real.
-        _db.Context.Afiliados.Add(new Afiliado { NombreCompleto = "Otro request", DNI = "30555666", isActive = true });
+        _db.Context.Afiliados.Add(new Afiliado { NombreCompleto = "Otro request", DNI = "30555666", IsActive = true });
 
         var resultado = await _servicio.CrearAsync(Pedido("30555666"));
 
@@ -114,7 +114,7 @@ public class AfiliadoServiceTests : IDisposable
         var resultado = await _servicio.CrearAsync(Pedido("30999888"));
 
         Assert.True(resultado.EsOk);
-        Assert.True(resultado.Valor!.isActive);
+        Assert.True(resultado.Valor!.IsActive);
         Assert.False(resultado.Valor.Bloqueado);
         Assert.Equal(0, resultado.Valor.ConsultasUsadas);
     }

@@ -21,7 +21,7 @@ public sealed class BaseDeDatosEnMemoria : IDisposable
 
     public Afiliado AgregarAfiliado(string dni = "30111222", bool activo = true, bool bloqueado = false)
     {
-        var afiliado = new Afiliado { NombreCompleto = "Afiliado de prueba", DNI = dni, isActive = activo, Bloqueado = bloqueado };
+        var afiliado = new Afiliado { NombreCompleto = "Afiliado de prueba", DNI = dni, IsActive = activo, Bloqueado = bloqueado };
         Context.Afiliados.Add(afiliado);
         Context.SaveChanges();
         return afiliado;

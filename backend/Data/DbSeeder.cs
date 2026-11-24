@@ -42,7 +42,7 @@ public static class DbSeeder
             {
                 NombreCompleto = nombre, DNI = dni, Email = email, Telefono = tel, Plan = "Plan Integral",
                 ConsultasUsadas = usadas, Bloqueado = bloqueado, FechaBloqueo = fechaBloqueo,
-                createdAt = alta, isActive = true
+                CreatedAt = alta, IsActive = true
             };
 
         var afiliados = new[]

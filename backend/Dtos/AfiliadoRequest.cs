@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace ConsultasPlan.Dtos;
 
 /// <summary>
-/// Datos editables de un afiliado. Bloqueado, ConsultasUsadas, isActive y createdAt
+/// Datos editables de un afiliado. Bloqueado, ConsultasUsadas, IsActive y CreatedAt
 /// los gestiona el sistema: no se aceptan desde el cliente para evitar over-posting.
 /// </summary>
 public class AfiliadoRequest

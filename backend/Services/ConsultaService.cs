@@ -64,7 +64,7 @@ public class ConsultaService : IConsultaService
         if (afiliado == null)
             return Resultado<Consulta>.NoEncontrado("Afiliado no encontrado.");
 
-        if (!afiliado.isActive)
+        if (!afiliado.IsActive)
             return Resultado<Consulta>.Invalido("El afiliado está dado de baja.");
 
         if (afiliado.Bloqueado)
