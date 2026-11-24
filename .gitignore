@@ -1,6 +1,6 @@
 # .NET
-backend/bin/
-backend/obj/
+**/bin/
+**/obj/
 backend/*.db
 backend/*.db-shm
 backend/*.db-wal
