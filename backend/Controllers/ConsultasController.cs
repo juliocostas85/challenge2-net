@@ -72,7 +72,7 @@ public class ConsultasController : ControllerBase
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return NotFound();
 
-        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(23))
+        if (consulta.FechaHora - DateTime.Now < TimeSpan.FromHours(24))
             return BadRequest(new { mensaje = "No se puede cancelar con menos de 24 horas de anticipación." });
 
         consulta.Estado = EstadoConsulta.Cancelado;
