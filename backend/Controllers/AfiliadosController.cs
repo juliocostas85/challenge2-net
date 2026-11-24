@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ConsultasPlan.Models;
+using ConsultasPlan.Dtos;
 using ConsultasPlan.Services;
 
 namespace ConsultasPlan.Controllers;
@@ -27,16 +27,16 @@ public class AfiliadosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Afiliado afiliado)
+    public async Task<IActionResult> Create([FromBody] AfiliadoRequest request)
     {
-        var resultado = await _afiliados.CrearAsync(afiliado);
+        var resultado = await _afiliados.CrearAsync(request);
         if (!resultado.EsOk) return this.ToActionResult(resultado);
         return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Afiliado afiliado) =>
-        this.ToActionResult(await _afiliados.ActualizarAsync(id, afiliado));
+    public async Task<IActionResult> Update(int id, [FromBody] AfiliadoRequest request) =>
+        this.ToActionResult(await _afiliados.ActualizarAsync(id, request));
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)

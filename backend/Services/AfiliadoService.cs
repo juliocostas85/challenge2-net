@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 
 namespace ConsultasPlan.Services;
@@ -8,8 +9,8 @@ public interface IAfiliadoService
 {
     Task<List<Afiliado>> ObtenerTodosAsync();
     Task<Afiliado?> ObtenerPorIdAsync(int id);
-    Task<Resultado<Afiliado>> CrearAsync(Afiliado afiliado);
-    Task<Resultado<Afiliado>> ActualizarAsync(int id, Afiliado datos);
+    Task<Resultado<Afiliado>> CrearAsync(AfiliadoRequest request);
+    Task<Resultado<Afiliado>> ActualizarAsync(int id, AfiliadoRequest datos);
     Task<Resultado<Afiliado>> EliminarAsync(int id);
 }
 
@@ -34,24 +35,31 @@ public class AfiliadoService : IAfiliadoService
 
     public async Task<Afiliado?> ObtenerPorIdAsync(int id) => await _context.Afiliados.FindAsync(id);
 
-    public async Task<Resultado<Afiliado>> CrearAsync(Afiliado afiliado)
+    public async Task<Resultado<Afiliado>> CrearAsync(AfiliadoRequest request)
     {
-        afiliado.createdAt = Ahora;
-        afiliado.isActive = true;
+        var afiliado = new Afiliado
+        {
+            NombreCompleto = request.NombreCompleto.Trim(),
+            DNI = request.DNI.Trim(),
+            Email = request.Email.Trim(),
+            Telefono = request.Telefono.Trim(),
+            createdAt = Ahora,
+            isActive = true
+        };
         _context.Afiliados.Add(afiliado);
         await _context.SaveChangesAsync();
         return Resultado<Afiliado>.Ok(afiliado);
     }
 
-    public async Task<Resultado<Afiliado>> ActualizarAsync(int id, Afiliado datos)
+    public async Task<Resultado<Afiliado>> ActualizarAsync(int id, AfiliadoRequest datos)
     {
         var existing = await _context.Afiliados.FindAsync(id);
         if (existing == null) return Resultado<Afiliado>.NoEncontrado();
 
-        existing.NombreCompleto = datos.NombreCompleto;
-        existing.DNI = datos.DNI;
-        existing.Email = datos.Email;
-        existing.Telefono = datos.Telefono;
+        existing.NombreCompleto = datos.NombreCompleto.Trim();
+        existing.DNI = datos.DNI.Trim();
+        existing.Email = datos.Email.Trim();
+        existing.Telefono = datos.Telefono.Trim();
 
         await _context.SaveChangesAsync();
         return Resultado<Afiliado>.Ok(existing);

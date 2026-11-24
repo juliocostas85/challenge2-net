@@ -17,6 +17,19 @@ builder.Services.AddControllers().AddJsonOptions(options =>
         System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.Converters.Add(
         new System.Text.Json.Serialization.JsonStringEnumConverter());
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    // Los errores de validación se devuelven con el mismo formato { mensaje } que el resto de la API,
+    // que es el que muestra el frontend.
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errores = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage)
+            .Distinct();
+        return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new { mensaje = string.Join(" ", errores) });
+    };
 });
 
 builder.Services.AddEndpointsApiExplorer();

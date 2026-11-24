@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Dtos;
 using ConsultasPlan.Helpers;
 using ConsultasPlan.Models;
 
@@ -9,7 +10,7 @@ public interface IConsultaService
 {
     Task<List<Consulta>> ObtenerTodasAsync();
     Task<Consulta?> ObtenerPorIdAsync(int id);
-    Task<Resultado<Consulta>> CrearAsync(Consulta consulta);
+    Task<Resultado<Consulta>> CrearAsync(CrearConsultaRequest request);
     Task<Resultado<Consulta>> CancelarAsync(int id);
     Task<Resultado<Consulta>> MarcarInasistenciaAsync(int id);
     Task<Resultado<Consulta>> RegistrarAtencionAsync(int id);
@@ -45,8 +46,17 @@ public class ConsultaService : IConsultaService
             .Include(c => c.Profesional)
             .FirstOrDefaultAsync(c => c.Id == id);
 
-    public async Task<Resultado<Consulta>> CrearAsync(Consulta consulta)
+    public async Task<Resultado<Consulta>> CrearAsync(CrearConsultaRequest request)
     {
+        var consulta = new Consulta
+        {
+            AfiliadoId = request.AfiliadoId!.Value,
+            ProfesionalId = request.ProfesionalId!.Value,
+            FechaHora = request.FechaHora!.Value,
+            Modalidad = request.Modalidad!.Value,
+            Motivo = request.Motivo.Trim()
+        };
+
         var afiliado = await _context.Afiliados.FindAsync(consulta.AfiliadoId);
         if (afiliado == null)
             return Resultado<Consulta>.NoEncontrado("Afiliado no encontrado.");

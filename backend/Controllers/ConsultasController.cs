@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 using ConsultasPlan.Services;
 
@@ -27,9 +28,9 @@ public class ConsultasController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CrearConsulta([FromBody] Consulta consulta)
+    public async Task<IActionResult> CrearConsulta([FromBody] CrearConsultaRequest request)
     {
-        var resultado = await _consultas.CrearAsync(consulta);
+        var resultado = await _consultas.CrearAsync(request);
         if (!resultado.EsOk) return this.ToActionResult(resultado);
         return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor);
     }
