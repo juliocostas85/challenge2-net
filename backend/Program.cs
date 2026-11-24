@@ -16,7 +16,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.ReferenceHandler =
         System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.Converters.Add(
-        new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Enums solo por nombre: un entero (ej. modalidad = 7) se guardaba como un valor inexistente.
+        new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false));
 })
 .ConfigureApiBehaviorOptions(options =>
 {
@@ -24,10 +25,14 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     // que es el que muestra el frontend.
     options.InvalidModelStateResponseFactory = context =>
     {
-        var errores = context.ModelState.Values
-            .SelectMany(v => v.Errors)
-            .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage)
-            .Distinct();
+        var errores = context.ModelState
+            .Where(kv => kv.Key != "request") // error genérico redundante cuando falla el JSON
+            .SelectMany(kv => kv.Value!.Errors.Select(e =>
+                e.Exception != null || e.ErrorMessage.StartsWith("The JSON value")
+                    ? $"El valor de '{kv.Key.TrimStart('$', '.')}' no es válido."
+                    : string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Datos inválidos." : e.ErrorMessage))
+            .Distinct()
+            .DefaultIfEmpty("Datos inválidos.");
         return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new { mensaje = string.Join(" ", errores) });
     };
 });

@@ -21,6 +21,7 @@ public class CrearConsultaRequest
     public DateTime? FechaHora { get; set; }
 
     [Required(ErrorMessage = "La modalidad es requerida.")]
+    [EnumDataType(typeof(ModalidadConsulta), ErrorMessage = "La modalidad no es válida.")]
     public ModalidadConsulta? Modalidad { get; set; }
 
     [StringLength(500, ErrorMessage = "El motivo no puede superar los 500 caracteres.")]

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using ConsultasPlan.Dtos;
-using ConsultasPlan.Models;
 using ConsultasPlan.Services;
 
 namespace ConsultasPlan.Controllers;
@@ -49,10 +48,5 @@ public class ConsultasController : ControllerBase
 
     [HttpPut("{id}/estado")]
     public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request) =>
-        this.ToActionResult(await _consultas.ActualizarEstadoAsync(id, request.Estado));
-}
-
-public class ActualizarEstadoRequest
-{
-    public EstadoConsulta Estado { get; set; }
+        this.ToActionResult(await _consultas.ActualizarEstadoAsync(id, request.Estado!.Value));
 }
