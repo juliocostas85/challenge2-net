@@ -92,7 +92,7 @@ public class ConsultaService : IConsultaService
         consulta.Estado = EstadoConsulta.Pendiente;
         _context.Consultas.Add(consulta);
         await _context.SaveChangesAsync();
-        return Resultado<Consulta>.Ok(consulta);
+        return Resultado<Consulta>.Ok(await CargarCompletaAsync(consulta.Id));
     }
 
     public Task<Resultado<Consulta>> CancelarAsync(int id) =>
@@ -124,6 +124,12 @@ public class ConsultaService : IConsultaService
 
         consulta.Estado = destino;
         await _context.SaveChangesAsync();
-        return Resultado<Consulta>.Ok(consulta);
+        return Resultado<Consulta>.Ok(await CargarCompletaAsync(consulta.Id));
     }
+
+    /// <summary>
+    /// Todas las operaciones devuelven la consulta con la misma forma que GET /consultas/{id}
+    /// (afiliado y profesional incluidos): el cliente reemplaza su copia con la respuesta.
+    /// </summary>
+    private async Task<Consulta> CargarCompletaAsync(int id) => (await ObtenerPorIdAsync(id))!;
 }

@@ -123,6 +123,21 @@ public class ConsultaServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Crear_y_cambiar_estado_devuelven_la_consulta_completa_como_el_GET()
+    {
+        var afiliado = _db.AgregarAfiliado();
+        var profesional = _db.AgregarProfesional();
+        var creada = (await _servicio.CrearAsync(Pedido(afiliado.Id, profesional.Id, Ahora.AddDays(3)))).Valor!;
+        _db.Context.ChangeTracker.Clear(); // simula un request nuevo: nada precargado en el contexto
+
+        var confirmada = (await _servicio.ActualizarEstadoAsync(creada.Id, EstadoConsulta.Confirmado)).Valor!;
+
+        Assert.NotNull(creada.Profesional);
+        Assert.NotNull(confirmada.Afiliado);
+        Assert.NotNull(confirmada.Profesional);
+    }
+
+    [Fact]
     public async Task Operar_sobre_consulta_inexistente_es_no_encontrado()
     {
         Assert.Equal(TipoResultado.NoEncontrado, (await _servicio.CancelarAsync(999)).Tipo);
