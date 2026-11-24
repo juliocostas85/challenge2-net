@@ -5,7 +5,7 @@ using ConsultasPlan.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=consultas.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IConsultaService, ConsultaService>();
@@ -39,11 +39,13 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Solo los orígenes configurados (el frontend), en lugar de cualquier origen.
+var origenesPermitidos = builder.Configuration.GetSection("Cors:OrigenesPermitidos").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(origenesPermitidos)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -58,8 +60,12 @@ using (var scope = app.Services.CreateScope())
     DbSeeder.Seed(db);
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// La documentación interactiva de la API solo se publica en desarrollo.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 app.UseCors();
 app.MapControllers();
