@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
-using ConsultasPlan.Helpers;
+using ConsultasPlan.Domain;
 using ConsultasPlan.Models;
 
 namespace ConsultasPlan.Services;
@@ -82,51 +82,34 @@ public class ConsultaService : IConsultaService
         return Resultado<Consulta>.Ok(consulta);
     }
 
-    public async Task<Resultado<Consulta>> CancelarAsync(int id)
+    public Task<Resultado<Consulta>> CancelarAsync(int id) =>
+        CambiarEstadoAsync(id, EstadoConsulta.Cancelado);
+
+    public Task<Resultado<Consulta>> MarcarInasistenciaAsync(int id) =>
+        CambiarEstadoAsync(id, EstadoConsulta.Inasistencia);
+
+    public Task<Resultado<Consulta>> RegistrarAtencionAsync(int id) =>
+        CambiarEstadoAsync(id, EstadoConsulta.Atendido);
+
+    public Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado) =>
+        CambiarEstadoAsync(id, estado);
+
+    /// <summary>
+    /// Único punto donde cambia el estado de una consulta: todas las operaciones aplican
+    /// las mismas reglas de ciclo de vida (ver ConsultaTransiciones).
+    /// </summary>
+    private async Task<Resultado<Consulta>> CambiarEstadoAsync(int id, EstadoConsulta destino)
     {
         var consulta = await _context.Consultas.FindAsync(id);
         if (consulta == null) return Resultado<Consulta>.NoEncontrado();
 
-        if (consulta.FechaHora - Ahora < TimeSpan.FromHours(24))
-            return Resultado<Consulta>.Invalido("No se puede cancelar con menos de 24 horas de anticipación.");
+        var error = ConsultaTransiciones.Validar(consulta, destino, Ahora);
+        if (error != null)
+            return error.EsConflictoDeEstado
+                ? Resultado<Consulta>.Conflicto(error.Mensaje)
+                : Resultado<Consulta>.Invalido(error.Mensaje);
 
-        consulta.Estado = EstadoConsulta.Cancelado;
-        await _context.SaveChangesAsync();
-        return Resultado<Consulta>.Ok(consulta);
-    }
-
-    public async Task<Resultado<Consulta>> MarcarInasistenciaAsync(int id)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return Resultado<Consulta>.NoEncontrado();
-
-        if (consulta.FechaHora > Ahora)
-            return Resultado<Consulta>.Invalido("No se puede registrar una inasistencia sobre una consulta futura.");
-
-        consulta.Estado = EstadoConsulta.Inasistencia;
-        await _context.SaveChangesAsync();
-        return Resultado<Consulta>.Ok(consulta);
-    }
-
-    public async Task<Resultado<Consulta>> RegistrarAtencionAsync(int id)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return Resultado<Consulta>.NoEncontrado();
-
-        if (!consulta.FechaHora.IsInCurrentYear())
-            return Resultado<Consulta>.Invalido("Solo se pueden registrar atenciones de consultas del año en curso.");
-
-        consulta.Estado = EstadoConsulta.Atendido;
-        await _context.SaveChangesAsync();
-        return Resultado<Consulta>.Ok(consulta);
-    }
-
-    public async Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado)
-    {
-        var consulta = await _context.Consultas.FindAsync(id);
-        if (consulta == null) return Resultado<Consulta>.NoEncontrado();
-
-        consulta.Estado = estado;
+        consulta.Estado = destino;
         await _context.SaveChangesAsync();
         return Resultado<Consulta>.Ok(consulta);
     }
