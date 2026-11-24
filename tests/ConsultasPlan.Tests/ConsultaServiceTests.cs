@@ -138,6 +138,32 @@ public class ConsultaServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task FechaHora_con_segundos_no_esquiva_el_horario_ocupado()
+    {
+        var profesional = _db.AgregarProfesional();
+        var turno = Ahora.AddDays(2);
+        _db.AgregarConsulta(_db.AgregarAfiliado("30000001"), profesional, turno);
+
+        var resultado = await _servicio.CrearAsync(Pedido(_db.AgregarAfiliado("30000002").Id, profesional.Id, turno.AddSeconds(30)));
+
+        Assert.Equal(TipoResultado.Invalido, resultado.Tipo);
+    }
+
+    [Fact]
+    public async Task FechaHora_con_zona_horaria_se_guarda_en_hora_local()
+    {
+        var argentina = TimeZoneInfo.CreateCustomTimeZone("AR", TimeSpan.FromHours(-3), "AR", "AR");
+        var servicio = new ConsultaService(_db.Context, new RelojFijo(Ahora, argentina));
+        var afiliado = _db.AgregarAfiliado();
+        var profesional = _db.AgregarProfesional();
+        var utc = new DateTime(2026, 6, 20, 13, 0, 0, DateTimeKind.Utc);
+
+        var consulta = (await servicio.CrearAsync(Pedido(afiliado.Id, profesional.Id, utc))).Valor!;
+
+        Assert.Equal(new DateTime(2026, 6, 20, 10, 0, 0), consulta.FechaHora);
+    }
+
+    [Fact]
     public async Task Operar_sobre_consulta_inexistente_es_no_encontrado()
     {
         Assert.Equal(TipoResultado.NoEncontrado, (await _servicio.CancelarAsync(999)).Tipo);

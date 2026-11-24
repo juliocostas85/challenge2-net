@@ -52,7 +52,7 @@ public class ConsultaService : IConsultaService
         {
             AfiliadoId = request.AfiliadoId!.Value,
             ProfesionalId = request.ProfesionalId!.Value,
-            FechaHora = request.FechaHora!.Value,
+            FechaHora = NormalizarFechaHora(request.FechaHora!.Value),
             Modalidad = request.Modalidad!.Value,
             Motivo = request.Motivo.Trim()
         };
@@ -125,6 +125,20 @@ public class ConsultaService : IConsultaService
         consulta.Estado = destino;
         await _context.SaveChangesAsync();
         return Resultado<Consulta>.Ok(await CargarCompletaAsync(consulta.Id));
+    }
+
+    /// <summary>
+    /// Convención del sistema: FechaHora es hora local de la clínica, con precisión de minuto.
+    /// - Si llega con zona (ej. "...Z" desde Swagger) se convierte a hora local; si no, se guardaba
+    ///   la hora UTC como si fuera local (3 h de diferencia en Argentina).
+    /// - Se descartan segundos y milisegundos: el control de horario ocupado compara por igualdad
+    ///   y 10:00:30 esquivaba una consulta existente a las 10:00.
+    /// </summary>
+    private DateTime NormalizarFechaHora(DateTime fecha)
+    {
+        if (fecha.Kind != DateTimeKind.Unspecified)
+            fecha = TimeZoneInfo.ConvertTimeFromUtc(fecha.ToUniversalTime(), _tiempo.LocalTimeZone);
+        return new DateTime(fecha.Year, fecha.Month, fecha.Day, fecha.Hour, fecha.Minute, 0, DateTimeKind.Unspecified);
     }
 
     /// <summary>
