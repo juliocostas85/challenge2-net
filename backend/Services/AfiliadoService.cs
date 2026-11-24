@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Domain;
@@ -53,7 +54,8 @@ public class AfiliadoService : IAfiliadoService
             isActive = true
         };
         _context.Afiliados.Add(afiliado);
-        await _context.SaveChangesAsync();
+        if (!await GuardarRespetandoDniUnicoAsync())
+            return Resultado<Afiliado>.Conflicto("Ya existe un afiliado con ese DNI.");
         return Resultado<Afiliado>.Ok(afiliado);
     }
 
@@ -72,7 +74,8 @@ public class AfiliadoService : IAfiliadoService
         existing.Email = datos.Email.Trim();
         existing.Telefono = datos.Telefono.Trim();
 
-        await _context.SaveChangesAsync();
+        if (!await GuardarRespetandoDniUnicoAsync())
+            return Resultado<Afiliado>.Conflicto("Ya existe un afiliado con ese DNI.");
         return Resultado<Afiliado>.Ok(existing);
     }
 
@@ -99,6 +102,33 @@ public class AfiliadoService : IAfiliadoService
         await _context.SaveChangesAsync(); // baja y cancelaciones en una única transacción
         return Resultado<Afiliado>.Ok(afiliado);
     }
+
+    /// <summary>
+    /// La validación previa del DNI no alcanza ante dos altas simultáneas: ambas la pasan y el
+    /// índice único de la base rechaza la segunda. Esa violación se informa como conflicto (409)
+    /// en lugar de propagarse como error 500.
+    /// </summary>
+    private async Task<bool> GuardarRespetandoDniUnicoAsync()
+    {
+        try
+        {
+            await _context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException ex) when (EsViolacionDniUnico(ex))
+        {
+            foreach (var entrada in ex.Entries)
+            {
+                if (entrada.State == EntityState.Added) entrada.State = EntityState.Detached;
+                else entrada.Reload();
+            }
+            return false;
+        }
+    }
+
+    private static bool EsViolacionDniUnico(DbUpdateException ex) =>
+        ex.InnerException is SqliteException { SqliteErrorCode: 19 } sqlite // SQLITE_CONSTRAINT
+        && sqlite.Message.Contains("Afiliados.DNI", StringComparison.OrdinalIgnoreCase);
 
     private async Task<string?> ValidarDniDisponibleAsync(string dni, int? idExcluido)
     {

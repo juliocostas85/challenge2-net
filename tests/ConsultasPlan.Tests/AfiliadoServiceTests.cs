@@ -86,6 +86,18 @@ public class AfiliadoServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Alta_simultanea_con_el_mismo_DNI_es_conflicto_y_no_error()
+    {
+        // Simula otra alta con el mismo DNI que todavía no estaba en la base cuando se validó:
+        // queda pendiente en el contexto y se guarda junto con esta, como en una carrera real.
+        _db.Context.Afiliados.Add(new Afiliado { NombreCompleto = "Otro request", DNI = "30555666", isActive = true });
+
+        var resultado = await _servicio.CrearAsync(Pedido("30555666"));
+
+        Assert.Equal(TipoResultado.Conflicto, resultado.Tipo);
+    }
+
+    [Fact]
     public async Task No_permite_recrear_un_afiliado_dado_de_baja()
     {
         // Si se permitiera, el afiliado "nuevo" empezaría con el historial vacío.
