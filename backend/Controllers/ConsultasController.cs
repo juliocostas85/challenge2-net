@@ -16,37 +16,38 @@ public class ConsultasController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() => Ok(await _consultas.ObtenerTodasAsync());
+    public async Task<ActionResult<IEnumerable<ConsultaResponse>>> GetAll() =>
+        Ok((await _consultas.ObtenerTodasAsync()).Select(c => c.ToResponse()));
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<ActionResult<ConsultaResponse>> GetById(int id)
     {
         var consulta = await _consultas.ObtenerPorIdAsync(id);
         if (consulta == null) return NotFound();
-        return Ok(consulta);
+        return Ok(consulta.ToResponse());
     }
 
     [HttpPost]
     public async Task<IActionResult> CrearConsulta([FromBody] CrearConsultaRequest request)
     {
         var resultado = await _consultas.CrearAsync(request);
-        if (!resultado.EsOk) return this.ToActionResult(resultado);
-        return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor);
+        if (!resultado.EsOk) return this.ToActionResult(resultado, c => c.ToResponse());
+        return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor.ToResponse());
     }
 
     [HttpPut("cancelar/{id}")]
     public async Task<IActionResult> CancelarConsulta(int id) =>
-        this.ToActionResult(await _consultas.CancelarAsync(id));
+        this.ToActionResult(await _consultas.CancelarAsync(id), c => c.ToResponse());
 
     [HttpPost("{id}/inasistencia")]
     public async Task<IActionResult> MarcarInasistencia(int id) =>
-        this.ToActionResult(await _consultas.MarcarInasistenciaAsync(id));
+        this.ToActionResult(await _consultas.MarcarInasistenciaAsync(id), c => c.ToResponse());
 
     [HttpPost("{id}/atencion")]
     public async Task<IActionResult> RegistrarAtencion(int id) =>
-        this.ToActionResult(await _consultas.RegistrarAtencionAsync(id));
+        this.ToActionResult(await _consultas.RegistrarAtencionAsync(id), c => c.ToResponse());
 
     [HttpPut("{id}/estado")]
     public async Task<IActionResult> ActualizarEstado(int id, [FromBody] ActualizarEstadoRequest request) =>
-        this.ToActionResult(await _consultas.ActualizarEstadoAsync(id, request.Estado!.Value));
+        this.ToActionResult(await _consultas.ActualizarEstadoAsync(id, request.Estado!.Value), c => c.ToResponse());
 }
