@@ -10,11 +10,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IConsultaService, ConsultaService>();
 builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
+builder.Services.AddScoped<ICatalogoService, CatalogoService>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
-    options.JsonSerializerOptions.ReferenceHandler =
-        System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     options.JsonSerializerOptions.Converters.Add(
         // Enums solo por nombre: un entero (ej. modalidad = 7) se guardaba como un valor inexistente.
         new System.Text.Json.Serialization.JsonStringEnumConverter(allowIntegerValues: false));
