@@ -1,10 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=consultas.db"));
+
+builder.Services.AddScoped<IConsultaService, ConsultaService>();
+builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {

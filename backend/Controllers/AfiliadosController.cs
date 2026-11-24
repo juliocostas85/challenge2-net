@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ConsultasPlan.Data;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services;
 
 namespace ConsultasPlan.Controllers;
 
@@ -9,24 +8,20 @@ namespace ConsultasPlan.Controllers;
 [Route("[controller]")]
 public class AfiliadosController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IAfiliadoService _afiliados;
 
-    public AfiliadosController(AppDbContext context)
+    public AfiliadosController(IAfiliadoService afiliados)
     {
-        _context = context;
+        _afiliados = afiliados;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
-    {
-        var afiliados = await _context.Afiliados.ToListAsync();
-        return Ok(afiliados);
-    }
+    public async Task<IActionResult> GetAll() => Ok(await _afiliados.ObtenerTodosAsync());
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
+        var afiliado = await _afiliados.ObtenerPorIdAsync(id);
         if (afiliado == null) return NotFound();
         return Ok(afiliado);
     }
@@ -34,36 +29,20 @@ public class AfiliadosController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Afiliado afiliado)
     {
-        afiliado.createdAt = DateTime.UtcNow;
-        afiliado.isActive = true;
-        _context.Afiliados.Add(afiliado);
-        await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = afiliado.Id }, afiliado);
+        var resultado = await _afiliados.CrearAsync(afiliado);
+        if (!resultado.EsOk) return this.ToActionResult(resultado);
+        return CreatedAtAction(nameof(GetById), new { id = resultado.Valor!.Id }, resultado.Valor);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Afiliado afiliado)
-    {
-        var existing = await _context.Afiliados.FindAsync(id);
-        if (existing == null) return NotFound();
-
-        existing.NombreCompleto = afiliado.NombreCompleto;
-        existing.DNI = afiliado.DNI;
-        existing.Email = afiliado.Email;
-        existing.Telefono = afiliado.Telefono;
-
-        await _context.SaveChangesAsync();
-        return Ok(existing);
-    }
+    public async Task<IActionResult> Update(int id, [FromBody] Afiliado afiliado) =>
+        this.ToActionResult(await _afiliados.ActualizarAsync(id, afiliado));
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var afiliado = await _context.Afiliados.FindAsync(id);
-        if (afiliado == null) return NotFound();
-
-        _context.Afiliados.Remove(afiliado);
-        await _context.SaveChangesAsync();
+        var resultado = await _afiliados.EliminarAsync(id);
+        if (!resultado.EsOk) return this.ToActionResult(resultado);
         return NoContent();
     }
 }
