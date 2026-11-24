@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Domain;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 
@@ -78,14 +79,24 @@ public class AfiliadoService : IAfiliadoService
     /// <summary>
     /// Baja lógica: el afiliado deja de listarse y no puede agendar, pero se conservan él y su
     /// historial de consultas, del que dependen reglas como el cupo anual.
+    /// Sus consultas futuras pendientes o confirmadas se cancelan en la misma operación: al dejar
+    /// el plan pierden cobertura y no deben seguir ocupando el horario del profesional.
     /// </summary>
     public async Task<Resultado<Afiliado>> EliminarAsync(int id)
     {
         var afiliado = await _context.Afiliados.FindAsync(id);
         if (afiliado == null) return Resultado<Afiliado>.NoEncontrado();
 
+        var ahora = Ahora;
+        var consultasFuturas = await _context.Consultas
+            .Where(c => c.AfiliadoId == id && c.FechaHora > ahora)
+            .ToListAsync();
+
+        foreach (var consulta in consultasFuturas.Where(c => ConsultaTransiciones.PuedeCancelarsePorBaja(c, ahora)))
+            consulta.Estado = EstadoConsulta.Cancelado;
+
         afiliado.isActive = false;
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(); // baja y cancelaciones en una única transacción
         return Resultado<Afiliado>.Ok(afiliado);
     }
 

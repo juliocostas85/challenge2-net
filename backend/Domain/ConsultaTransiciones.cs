@@ -40,6 +40,14 @@ public static class ConsultaTransiciones
 
     public static bool EsFinal(EstadoConsulta estado) => Permitidas[estado].Length == 0;
 
+    /// <summary>
+    /// Cancelación iniciada por el sistema al dar de baja al afiliado. Respeta el ciclo de vida
+    /// (solo consultas Pendientes o Confirmadas que todavía no ocurrieron) pero no la anticipación
+    /// de 24 h, que es una regla para las cancelaciones del afiliado.
+    /// </summary>
+    public static bool PuedeCancelarsePorBaja(Consulta consulta, DateTime ahora) =>
+        consulta.FechaHora > ahora && Permitidas[consulta.Estado].Contains(EstadoConsulta.Cancelado);
+
     /// <summary>Devuelve null si la transición es válida; si no, el motivo.</summary>
     public static ErrorTransicion? Validar(Consulta consulta, EstadoConsulta destino, DateTime ahora)
     {
