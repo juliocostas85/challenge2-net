@@ -26,6 +26,12 @@ public class AppDbContext : DbContext
             .HasOne(c => c.Afiliado)
             .WithMany()
             .HasForeignKey(c => c.AfiliadoId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // El DNI identifica al afiliado: evita duplicados (incluidos los dados de baja),
+        // que además permitirían "reiniciar" el historial de consultas creando un afiliado nuevo.
+        modelBuilder.Entity<Afiliado>()
+            .HasIndex(a => a.DNI)
+            .IsUnique();
     }
 }

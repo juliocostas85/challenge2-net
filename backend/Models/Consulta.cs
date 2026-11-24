@@ -3,7 +3,7 @@ namespace ConsultasPlan.Models;
 public class Consulta
 {
     public int Id { get; set; }
-    public int? AfiliadoId { get; set; }
+    public int AfiliadoId { get; set; }
     public Afiliado? Afiliado { get; set; }
     public int ProfesionalId { get; set; }
     public Profesional? Profesional { get; set; }
