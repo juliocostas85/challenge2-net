@@ -1,13 +1,14 @@
 <template>
   <div class="card" style="max-width: 560px">
     <h2>Nueva consulta</h2>
-    <form @submit.prevent="guardar">
+    <form @submit.prevent="guardar" novalidate>
       <div class="form-group">
         <label>Afiliado</label>
         <select v-model="form.afiliadoId">
           <option value="">Seleccioná un afiliado</option>
-          <option v-for="a in afiliados" :key="a.id" :value="a.id">
-            {{ a.nombreCompleto }} — DNI {{ a.dni }}
+          <!-- Los bloqueados se muestran deshabilitados: el backend rechazaría la consulta. -->
+          <option v-for="a in afiliados" :key="a.id" :value="a.id" :disabled="a.bloqueado">
+            {{ a.nombreCompleto }} — DNI {{ a.dni }}{{ a.bloqueado ? ' (bloqueado)' : '' }}
           </option>
         </select>
       </div>
@@ -16,7 +17,7 @@
         <select v-model="form.profesionalId">
           <option value="">Seleccioná un profesional</option>
           <option v-for="p in profesionales" :key="p.id" :value="p.id">
-            {{ p.nombreCompleto }} — {{ p.especialidad }}
+            {{ p.nombreCompleto }} — {{ p.especialidad }}{{ p.sede ? ` (${p.sede.nombre})` : '' }}
           </option>
         </select>
       </div>
@@ -29,19 +30,27 @@
       </div>
       <div class="form-group">
         <label>Fecha y hora</label>
-        <input type="datetime-local" v-model="form.fechaHora" />
+        <input type="datetime-local" v-model="form.fechaHora" :min="minimoFechaHora" />
       </div>
       <div class="form-group">
         <label>Motivo</label>
-        <input type="text" v-model="form.motivo" placeholder="Motivo de la consulta" />
+        <input type="text" v-model="form.motivo" maxlength="500" placeholder="Motivo de la consulta" />
       </div>
-      <button type="submit">Confirmar consulta</button>
+
+      <p v-if="error" class="error">{{ error }}</p>
+      <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando...' : 'Confirmar consulta' }}</button>
     </form>
   </div>
 </template>
 
 <script>
-import { consultasApi, afiliadosApi, profesionalesApi } from '../services/api'
+import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
+
+/** Fecha y hora local en el formato de un input datetime-local (yyyy-MM-ddTHH:mm). */
+function aDatetimeLocal(fecha) {
+  const local = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
 
 export default {
   name: 'ConsultaNueva',
@@ -55,7 +64,10 @@ export default {
         motivo: ''
       },
       afiliados: [],
-      profesionales: []
+      profesionales: [],
+      error: '',
+      guardando: false,
+      minimoFechaHora: aDatetimeLocal(new Date())
     }
   },
   async mounted() {
@@ -63,12 +75,24 @@ export default {
       const [aRes, pRes] = await Promise.all([afiliadosApi.getAll(), profesionalesApi.getAll()])
       this.afiliados = aRes.data
       this.profesionales = pRes.data
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      this.error = mensajeError(e, 'No se pudieron cargar afiliados y profesionales.')
     }
   },
   methods: {
+    validar() {
+      if (!this.form.afiliadoId) return 'Seleccioná un afiliado.'
+      if (!this.form.profesionalId) return 'Seleccioná un profesional.'
+      if (!this.form.fechaHora) return 'Ingresá la fecha y hora de la consulta.'
+      if (new Date(this.form.fechaHora) <= new Date()) return 'La fecha y hora deben ser futuras.'
+      return ''
+    },
     async guardar() {
+      // Las mismas reglas las valida el backend; acá se evitan pedidos que se sabe que van a fallar.
+      this.error = this.validar()
+      if (this.error || this.guardando) return
+
+      this.guardando = true
       try {
         await consultasApi.create({
           afiliadoId: Number(this.form.afiliadoId),
@@ -78,10 +102,17 @@ export default {
           motivo: this.form.motivo
         })
         this.$router.push('/consultas')
-      } catch {
-        alert('Error al procesar la solicitud')
+      } catch (e) {
+        this.error = mensajeError(e, 'No se pudo crear la consulta.')
+      } finally {
+        this.guardando = false
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.error { color: #d32f2f; font-size: 14px; margin-bottom: 12px; }
+button:disabled { opacity: .6; cursor: default; }
+</style>
