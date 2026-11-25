@@ -13,7 +13,7 @@
           <th>Email</th>
           <th>Teléfono</th>
           <th>Plan</th>
-          <th>Consultas usadas</th>
+          <th>Cupo nutrición {{ anioCupo }}</th>
           <th>Bloqueado</th>
           <th>Acciones</th>
         </tr>
@@ -26,7 +26,16 @@
           <td>{{ a.email }}</td>
           <td>{{ a.telefono }}</td>
           <td>{{ a.plan }}</td>
-          <td>{{ a.consultasUsadas }}</td>
+          <td>
+            <template v-if="a.cupoNutricion">
+              <span :class="{ 'sin-cupo': a.cupoNutricion.disponibles === 0 }">
+                {{ a.cupoNutricion.usadas }} de {{ a.cupoNutricion.maximo }} usadas
+              </span>
+              <span v-if="a.cupoNutricion.usadaEsteMes" class="tag-mes" title="Ya tiene una consulta de nutrición presencial este mes">
+                mes usado
+              </span>
+            </template>
+          </td>
           <td>
             <span v-if="a.bloqueado" style="color: #d32f2f; font-weight: 600">Sí</span>
             <span v-else style="color: #388e3c">No</span>
@@ -54,6 +63,11 @@ export default {
       cargando: true,
       errorCarga: '',
       procesandoId: null
+    }
+  },
+  computed: {
+    anioCupo() {
+      return this.afiliados[0]?.cupoNutricion?.anio ?? new Date().getFullYear()
     }
   },
   async mounted() {
@@ -91,4 +105,6 @@ export default {
 
 <style scoped>
 .error { color: #d32f2f; }
+.sin-cupo { color: #d32f2f; font-weight: 600; }
+.tag-mes { font-size: 11px; color: #856404; background: #fff3cd; border-radius: 8px; padding: 1px 6px; margin-left: 4px; white-space: nowrap; }
 </style>
