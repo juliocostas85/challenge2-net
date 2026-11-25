@@ -21,11 +21,13 @@ public class ConsultaService : IConsultaService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
+    private readonly ICupoNutricionService _cupo;
 
-    public ConsultaService(AppDbContext context, TimeProvider tiempo)
+    public ConsultaService(AppDbContext context, TimeProvider tiempo, ICupoNutricionService cupo)
     {
         _context = context;
         _tiempo = tiempo;
+        _cupo = cupo;
     }
 
     /// <summary>
@@ -70,8 +72,8 @@ public class ConsultaService : IConsultaService
         if (afiliado.Bloqueado)
             return Resultado<Consulta>.Invalido("El afiliado se encuentra bloqueado para agendar consultas.");
 
-        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == consulta.ProfesionalId);
-        if (!profesionalExiste)
+        var profesional = await _context.Profesionales.FindAsync(consulta.ProfesionalId);
+        if (profesional == null)
             return Resultado<Consulta>.NoEncontrado("Profesional no encontrado.");
 
         var consultaConflicto = await _context.Consultas.AnyAsync(c =>
@@ -87,6 +89,15 @@ public class ConsultaService : IConsultaService
             c.Estado != EstadoConsulta.Cancelado);
         if (afiliadoOcupado)
             return Resultado<Consulta>.Invalido("El afiliado ya tiene una consulta en ese horario.");
+
+        // Política de cupo de nutrición. Se valida solo al crear: el ciclo de vida no permite
+        // reactivar una consulta cancelada, así que ninguna otra operación puede aumentar el consumo.
+        if (_cupo.Aplica(consulta.Modalidad, profesional))
+        {
+            var errorCupo = await _cupo.ValidarAsync(consulta.AfiliadoId, consulta.FechaHora);
+            if (errorCupo != null)
+                return Resultado<Consulta>.Invalido(errorCupo);
+        }
 
         consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;
