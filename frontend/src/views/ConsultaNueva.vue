@@ -37,6 +37,9 @@
         <input type="text" v-model="form.motivo" maxlength="500" placeholder="Motivo de la consulta" />
       </div>
 
+      <!-- Información del cupo de nutrición: orienta al operador; quien decide es el backend. -->
+      <div v-if="avisoCupo" :class="['aviso', avisoCupo.tipo]">{{ avisoCupo.texto }}</div>
+
       <p v-if="error" class="error">{{ error }}</p>
       <button type="submit" :disabled="guardando">{{ guardando ? 'Guardando...' : 'Confirmar consulta' }}</button>
     </form>
@@ -45,6 +48,10 @@
 
 <script>
 import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
+
+/** Compara especialidades sin tildes ni mayúsculas, igual que el backend. */
+const normalizar = (texto) => (texto ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toUpperCase()
+const esNutricion = (profesional) => normalizar(profesional?.especialidad) === 'NUTRICION'
 
 /** Fecha y hora local en el formato de un input datetime-local (yyyy-MM-ddTHH:mm). */
 function aDatetimeLocal(fecha) {
@@ -68,6 +75,35 @@ export default {
       error: '',
       guardando: false,
       minimoFechaHora: aDatetimeLocal(new Date())
+    }
+  },
+  computed: {
+    afiliado() {
+      return this.afiliados.find(a => a.id === Number(this.form.afiliadoId))
+    },
+    profesional() {
+      return this.profesionales.find(p => p.id === Number(this.form.profesionalId))
+    },
+    /**
+     * Aviso según el cupo del afiliado (año y mes en curso, tal como lo informa el backend).
+     * Para otros meses o años solo se informa: el backend valida con la fecha elegida.
+     */
+    avisoCupo() {
+      if (!this.afiliado || !esNutricion(this.profesional)) return null
+      if (this.form.modalidad !== 'Presencial')
+        return { tipo: 'info', texto: 'Las consultas de nutrición virtuales no consumen el cupo del plan.' }
+
+      const cupo = this.afiliado.cupoNutricion
+      if (!cupo) return null
+      const fecha = this.form.fechaHora ? new Date(this.form.fechaHora) : null
+      const mismoAnio = !fecha || fecha.getFullYear() === cupo.anio
+      const mismoMes = fecha && mismoAnio && fecha.getMonth() === new Date().getMonth()
+
+      if (mismoAnio && cupo.disponibles === 0)
+        return { tipo: 'alerta', texto: `El afiliado ya usó las ${cupo.maximo} consultas de nutrición presenciales de ${cupo.anio}. La consulta será rechazada.` }
+      if (mismoMes && cupo.usadaEsteMes)
+        return { tipo: 'alerta', texto: 'El afiliado ya tiene una consulta de nutrición presencial este mes (máximo 1 por mes). Elegí otro mes.' }
+      return { tipo: 'info', texto: `Cupo de nutrición ${cupo.anio}: ${cupo.disponibles} de ${cupo.maximo} consultas presenciales disponibles (máximo 1 por mes).` }
     }
   },
   async mounted() {
@@ -114,5 +150,8 @@ export default {
 
 <style scoped>
 .error { color: #d32f2f; font-size: 14px; margin-bottom: 12px; }
+.aviso { font-size: 13px; padding: 8px 12px; border-radius: 4px; margin-bottom: 14px; }
+.aviso.info { background: #e8f0fe; color: #1a4fa0; }
+.aviso.alerta { background: #fff3cd; color: #856404; }
 button:disabled { opacity: .6; cursor: default; }
 </style>
