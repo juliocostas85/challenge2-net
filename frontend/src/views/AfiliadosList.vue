@@ -1,7 +1,10 @@
 <template>
   <div>
     <h2>Afiliados</h2>
-    <table v-if="afiliados.length">
+
+    <p v-if="cargando">Cargando afiliados...</p>
+    <p v-else-if="errorCarga" class="error">{{ errorCarga }}</p>
+    <table v-else-if="afiliados.length">
       <thead>
         <tr>
           <th>#</th>
@@ -29,7 +32,9 @@
             <span v-else style="color: #388e3c">No</span>
           </td>
           <td>
-            <button class="btn-danger" @click="eliminar(a.id)">Eliminar</button>
+            <button class="btn-danger" :disabled="procesandoId === a.id" @click="darDeBaja(a)">
+              {{ procesandoId === a.id ? 'Procesando...' : 'Dar de baja' }}
+            </button>
           </td>
         </tr>
       </tbody>
@@ -39,32 +44,51 @@
 </template>
 
 <script>
-import { afiliadosApi } from '../services/api'
+import { afiliadosApi, mensajeError } from '../services/api'
 
 export default {
   name: 'AfiliadosList',
   data() {
     return {
-      afiliados: []
+      afiliados: [],
+      cargando: true,
+      errorCarga: '',
+      procesandoId: null
     }
   },
   async mounted() {
     try {
       const res = await afiliadosApi.getAll()
       this.afiliados = res.data
-    } catch {
-      alert('Error al procesar la solicitud')
+    } catch (e) {
+      this.errorCarga = mensajeError(e, 'No se pudieron cargar los afiliados.')
+    } finally {
+      this.cargando = false
     }
   },
   methods: {
-    async eliminar(id) {
+    async darDeBaja(afiliado) {
+      // La baja es lógica (se conserva el historial) y cancela sus consultas futuras: se avisa antes.
+      const confirmado = confirm(
+        `¿Dar de baja a ${afiliado.nombreCompleto} (DNI ${afiliado.dni})?\n\n` +
+        'Se conserva su historial, pero sus consultas futuras pendientes o confirmadas se cancelarán.'
+      )
+      if (!confirmado) return
+
+      this.procesandoId = afiliado.id
       try {
-        await afiliadosApi.delete(id)
-        this.afiliados = this.afiliados.filter(a => a.id !== id)
-      } catch {
-        alert('Error al procesar la solicitud')
+        await afiliadosApi.delete(afiliado.id)
+        this.afiliados = this.afiliados.filter(a => a.id !== afiliado.id)
+      } catch (e) {
+        alert(mensajeError(e, 'No se pudo dar de baja al afiliado.'))
+      } finally {
+        this.procesandoId = null
       }
     }
   }
 }
 </script>
+
+<style scoped>
+.error { color: #d32f2f; }
+</style>
