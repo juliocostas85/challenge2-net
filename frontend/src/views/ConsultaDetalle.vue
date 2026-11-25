@@ -72,19 +72,31 @@ export default {
         : `La consulta está en estado ${this.consulta.estado} y no admite más cambios.`
     }
   },
-  async mounted() {
-    try {
-      const res = await consultasApi.getById(this.$route.params.id)
-      this.consulta = res.data
-    } catch (e) {
-      this.errorCarga = e.response?.status === 404
-        ? 'La consulta no existe.'
-        : mensajeError(e, 'No se pudo cargar la consulta.')
-    } finally {
-      this.cargando = false
-    }
+  watch: {
+    // Vue Router reutiliza el componente al pasar de /consultas/1 a /consultas/2: sin esto se
+    // seguía mostrando (y operando sobre) la consulta anterior.
+    '$route.params.id': 'cargar'
+  },
+  mounted() {
+    return this.cargar()
   },
   methods: {
+    async cargar() {
+      this.cargando = true
+      this.errorCarga = ''
+      this.nuevoEstado = ''
+      try {
+        const res = await consultasApi.getById(this.$route.params.id)
+        this.consulta = res.data
+      } catch (e) {
+        this.consulta = null
+        this.errorCarga = e.response?.status === 404
+          ? 'La consulta no existe.'
+          : mensajeError(e, 'No se pudo cargar la consulta.')
+      } finally {
+        this.cargando = false
+      }
+    },
     puedeCancelar,
     puedeRegistrarAtencion,
     puedeMarcarInasistencia,
