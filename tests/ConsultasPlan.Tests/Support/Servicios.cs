@@ -10,6 +10,9 @@ public static class Servicios
     public static CupoNutricionService Cupo(BaseDeDatosEnMemoria db, CupoNutricionOptions? opciones = null) =>
         new(db.Context, Options.Create(opciones ?? new CupoNutricionOptions()));
 
+    public static AfiliadoService Afiliados(BaseDeDatosEnMemoria db, TimeProvider reloj) =>
+        new(db.Context, reloj, Cupo(db));
+
     public static ConsultaService Consultas(BaseDeDatosEnMemoria db, TimeProvider reloj) =>
         new(db.Context, reloj, Cupo(db));
 }

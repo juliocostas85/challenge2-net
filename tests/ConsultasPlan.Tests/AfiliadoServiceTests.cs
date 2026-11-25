@@ -13,7 +13,7 @@ public class AfiliadoServiceTests : IDisposable
 
     public AfiliadoServiceTests()
     {
-        _servicio = new AfiliadoService(_db.Context, new RelojFijo(Ahora));
+        _servicio = Servicios.Afiliados(_db, new RelojFijo(Ahora));
     }
 
     private static AfiliadoRequest Pedido(string dni) => new()
@@ -116,7 +116,6 @@ public class AfiliadoServiceTests : IDisposable
         Assert.True(resultado.EsOk);
         Assert.True(resultado.Valor!.IsActive);
         Assert.False(resultado.Valor.Bloqueado);
-        Assert.Equal(0, resultado.Valor.ConsultasUsadas);
     }
 
     public void Dispose() => _db.Dispose();

@@ -14,17 +14,22 @@ public interface IAfiliadoService
     Task<Resultado<Afiliado>> CrearAsync(AfiliadoRequest request);
     Task<Resultado<Afiliado>> ActualizarAsync(int id, AfiliadoRequest datos);
     Task<Resultado<Afiliado>> EliminarAsync(int id);
+
+    /// <summary>Cupo de nutrición del año y mes actuales de cada afiliado pedido.</summary>
+    Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerCupoNutricionAsync(IReadOnlyCollection<int> afiliadoIds);
 }
 
 public class AfiliadoService : IAfiliadoService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
+    private readonly ICupoNutricionService _cupo;
 
-    public AfiliadoService(AppDbContext context, TimeProvider tiempo)
+    public AfiliadoService(AppDbContext context, TimeProvider tiempo, ICupoNutricionService cupo)
     {
         _context = context;
         _tiempo = tiempo;
+        _cupo = cupo;
     }
 
     /// <summary>
@@ -108,6 +113,9 @@ public class AfiliadoService : IAfiliadoService
     /// índice único de la base rechaza la segunda. Esa violación se informa como conflicto (409)
     /// en lugar de propagarse como error 500.
     /// </summary>
+    public Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerCupoNutricionAsync(IReadOnlyCollection<int> afiliadoIds) =>
+        _cupo.ObtenerEstadoAsync(afiliadoIds, Ahora);
+
     private async Task<bool> GuardarRespetandoDniUnicoAsync()
     {
         try

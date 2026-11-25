@@ -1,3 +1,4 @@
+using ConsultasPlan.Domain;
 using ConsultasPlan.Models;
 
 namespace ConsultasPlan.Dtos;
@@ -10,6 +11,12 @@ public record SedeResponse(int Id, string Nombre, string Direccion);
 
 public record ProfesionalResponse(int Id, string NombreCompleto, string Especialidad, int SedeId, SedeResponse? Sede);
 
+/// <summary>
+/// Cupo de nutrición del año en curso, calculado a partir del historial de consultas
+/// (reemplaza al contador ConsultasUsadas, que ninguna operación actualizaba).
+/// </summary>
+public record CupoNutricionResponse(int Anio, int Maximo, int Usadas, int Disponibles, bool UsadaEsteMes);
+
 public record AfiliadoResponse(
     int Id,
     string NombreCompleto,
@@ -17,7 +24,7 @@ public record AfiliadoResponse(
     string Email,
     string Telefono,
     string Plan,
-    int ConsultasUsadas,
+    CupoNutricionResponse? CupoNutricion,
     bool Bloqueado,
     DateTime? FechaBloqueo,
     bool Activo);
@@ -44,8 +51,11 @@ public static class RespuestasMapper
     public static ProfesionalResponse ToResponse(this Profesional p) =>
         new(p.Id, p.NombreCompleto, p.Especialidad, p.SedeId, p.Sede?.ToResponse());
 
-    public static AfiliadoResponse ToResponse(this Afiliado a) =>
-        new(a.Id, a.NombreCompleto, a.DNI, a.Email, a.Telefono, a.Plan, a.ConsultasUsadas, a.Bloqueado, a.FechaBloqueo, a.IsActive);
+    public static CupoNutricionResponse ToResponse(this EstadoCupo c) =>
+        new(c.Anio, c.MaximoAnual, c.Usadas, c.Disponibles, c.UsadaEnMes);
+
+    public static AfiliadoResponse ToResponse(this Afiliado a, EstadoCupo? cupo) =>
+        new(a.Id, a.NombreCompleto, a.DNI, a.Email, a.Telefono, a.Plan, cupo?.ToResponse(), a.Bloqueado, a.FechaBloqueo, a.IsActive);
 
     public static ConsultaResponse ToResponse(this Consulta c) =>
         new(c.Id,
