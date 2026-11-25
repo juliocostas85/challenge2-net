@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
+using ConsultasPlan.Domain;
 using ConsultasPlan.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +9,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.Configure<CupoNutricionOptions>(builder.Configuration.GetSection(CupoNutricionOptions.Seccion));
+builder.Services.AddScoped<ICupoNutricionService, CupoNutricionService>();
 builder.Services.AddScoped<IConsultaService, ConsultaService>();
 builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
