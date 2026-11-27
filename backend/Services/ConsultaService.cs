@@ -28,14 +28,12 @@ public class ConsultaService : IConsultaService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
-    private readonly ICupoNutricionService _cupo;
     private readonly IReadOnlyList<IReglaAgendamiento> _reglas;
 
-    public ConsultaService(AppDbContext context, TimeProvider tiempo, ICupoNutricionService cupo, IEnumerable<IReglaAgendamiento> reglas)
+    public ConsultaService(AppDbContext context, TimeProvider tiempo, IEnumerable<IReglaAgendamiento> reglas)
     {
         _context = context;
         _tiempo = tiempo;
-        _cupo = cupo;
         _reglas = reglas.ToList();
     }
 
@@ -84,14 +82,6 @@ public class ConsultaService : IConsultaService
             if (error != null) return Resultado<Consulta>.Invalido(error);
         }
 
-        // Política de cupo de nutrición. Se valida solo al crear: el ciclo de vida no permite
-        // reactivar una consulta cancelada, así que ninguna otra operación puede aumentar el consumo.
-        if (_cupo.Aplica(consulta.Modalidad, profesional))
-        {
-            var errorCupo = await _cupo.ValidarAsync(consulta.AfiliadoId, consulta.FechaHora);
-            if (errorCupo != null)
-                return Resultado<Consulta>.Invalido(errorCupo);
-        }
 
         consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;

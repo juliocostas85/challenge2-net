@@ -33,8 +33,8 @@ public class ReglasAgendamientoTests : IDisposable
     [Fact]
     public async Task Una_regla_nueva_se_aplica_sin_modificar_el_servicio()
     {
-        var servicio = new ConsultaService(_db.Context, new RelojFijo(Ahora), Servicios.Cupo(_db),
-            [.. Servicios.Reglas(_db), new SinConsultasLosDomingos()]);
+        var reloj = new RelojFijo(Ahora);
+        var servicio = new ConsultaService(_db.Context, reloj, [.. Servicios.Reglas(_db, reloj), new SinConsultasLosDomingos()]);
         var afiliado = _db.AgregarAfiliado();
         var domingo = new DateTime(2026, 6, 21, 10, 0, 0);
 
