@@ -24,8 +24,7 @@
       <div class="form-group">
         <label>Modalidad</label>
         <select v-model="form.modalidad">
-          <option value="Presencial">Presencial</option>
-          <option value="Virtual">Virtual</option>
+          <option v-for="m in modalidades" :key="m" :value="m">{{ m }}</option>
         </select>
       </div>
       <div class="form-group">
@@ -48,16 +47,12 @@
 
 <script>
 import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
+import { validarNuevaConsulta, MODALIDADES } from '../utils/consultas'
+import { aDatetimeLocal } from '../utils/fechas'
 
 /** Compara especialidades sin tildes ni mayúsculas, igual que el backend. */
 const normalizar = (texto) => (texto ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toUpperCase()
 const esNutricion = (profesional) => normalizar(profesional?.especialidad) === 'NUTRICION'
-
-/** Fecha y hora local en el formato de un input datetime-local (yyyy-MM-ddTHH:mm). */
-function aDatetimeLocal(fecha) {
-  const local = new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000)
-  return local.toISOString().slice(0, 16)
-}
 
 export default {
   name: 'ConsultaNueva',
@@ -66,7 +61,7 @@ export default {
       form: {
         afiliadoId: '',
         profesionalId: '',
-        modalidad: 'Presencial',
+        modalidad: MODALIDADES.PRESENCIAL,
         fechaHora: '',
         motivo: ''
       },
@@ -74,7 +69,8 @@ export default {
       profesionales: [],
       error: '',
       guardando: false,
-      minimoFechaHora: aDatetimeLocal(new Date())
+      minimoFechaHora: aDatetimeLocal(new Date()),
+      modalidades: Object.values(MODALIDADES)
     }
   },
   computed: {
@@ -116,16 +112,9 @@ export default {
     }
   },
   methods: {
-    validar() {
-      if (!this.form.afiliadoId) return 'Seleccioná un afiliado.'
-      if (!this.form.profesionalId) return 'Seleccioná un profesional.'
-      if (!this.form.fechaHora) return 'Ingresá la fecha y hora de la consulta.'
-      if (new Date(this.form.fechaHora) <= new Date()) return 'La fecha y hora deben ser futuras.'
-      return ''
-    },
     async guardar() {
       // Las mismas reglas las valida el backend; acá se evitan pedidos que se sabe que van a fallar.
-      this.error = this.validar()
+      this.error = validarNuevaConsulta(this.form)
       if (this.error || this.guardando) return
 
       this.guardando = true

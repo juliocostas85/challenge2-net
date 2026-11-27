@@ -2,23 +2,19 @@
   <div>
     <router-link to="/consultas" style="font-size:14px; color:#1a73e8">← Volver a consultas</router-link>
 
-    <p v-if="cargando" style="margin-top: 20px">Cargando...</p>
-    <p v-else-if="errorCarga" class="error" style="margin-top: 20px">{{ errorCarga }}</p>
-    <div v-else-if="consulta" class="card" style="margin-top: 20px; max-width: 560px">
+    <EstadoCarga :cargando="cargando" :error="errorCarga">
+    <div v-if="consulta" class="card" style="margin-top: 20px; max-width: 560px">
       <h2>Consulta #{{ consulta.id }}</h2>
       <div class="detail-row">
         <span class="label">Afiliado</span>
-        <span>
-          {{ consulta.afiliado?.nombreCompleto }}
-          <span v-if="consulta.afiliado && !consulta.afiliado.activo" class="tag-baja">dado de baja</span>
-        </span>
+        <AfiliadoNombre :afiliado="consulta.afiliado" />
       </div>
       <div class="detail-row"><span class="label">DNI</span><span>{{ consulta.afiliado?.dni }}</span></div>
       <div class="detail-row"><span class="label">Profesional</span><span>{{ consulta.profesional?.nombreCompleto }}</span></div>
       <div class="detail-row"><span class="label">Especialidad</span><span>{{ consulta.profesional?.especialidad }}</span></div>
       <div class="detail-row"><span class="label">Fecha y hora</span><span>{{ formatFecha(consulta.fechaHora) }}</span></div>
       <div class="detail-row"><span class="label">Modalidad</span><span>{{ consulta.modalidad }}</span></div>
-      <div class="detail-row"><span class="label">Estado</span><span>{{ consulta.estado }}</span></div>
+      <div class="detail-row"><span class="label">Estado</span><EstadoBadge :estado="consulta.estado" /></div>
       <div class="detail-row"><span class="label">Motivo</span><span>{{ consulta.motivo }}</span></div>
 
       <!-- Solo se ofrecen los cambios que permite el ciclo de vida; el backend vuelve a validarlos. -->
@@ -44,15 +40,22 @@
       </template>
       <p v-else class="sin-acciones">{{ motivoSinAcciones }}</p>
     </div>
+    </EstadoCarga>
   </div>
 </template>
 
 <script>
 import { consultasApi, mensajeError } from '../services/api'
-import { estadosPosibles, puedeCancelar, puedeRegistrarAtencion, puedeMarcarInasistencia, formatFecha } from '../utils/consultas'
+import { cancelarConConfirmacion } from '../services/acciones'
+import EstadoCarga from '../components/EstadoCarga.vue'
+import EstadoBadge from '../components/EstadoBadge.vue'
+import AfiliadoNombre from '../components/AfiliadoNombre.vue'
+import { esActiva, estadosPosibles, puedeCancelar, puedeRegistrarAtencion, puedeMarcarInasistencia } from '../utils/consultas'
+import { formatFecha } from '../utils/fechas'
 
 export default {
   name: 'ConsultaDetalle',
+  components: { EstadoCarga, EstadoBadge, AfiliadoNombre },
   data() {
     return {
       consulta: null,
@@ -67,7 +70,7 @@ export default {
       return this.consulta ? estadosPosibles(this.consulta) : []
     },
     motivoSinAcciones() {
-      return ['Pendiente', 'Confirmado'].includes(this.consulta.estado)
+      return esActiva(this.consulta)
         ? 'Faltan menos de 24 h para la consulta: ya no puede cancelarse. Cuando ocurra se podrá registrar la atención o la inasistencia.'
         : `La consulta está en estado ${this.consulta.estado} y no admite más cambios.`
     }
@@ -111,16 +114,19 @@ export default {
       return this.ejecutar(() => consultasApi.marcarInasistencia(this.consulta.id), 'No se pudo registrar la inasistencia.')
     },
     cancelar() {
-      if (!confirm('¿Cancelar esta consulta?')) return
-      return this.ejecutar(() => consultasApi.cancelar(this.consulta.id), 'No se pudo cancelar la consulta.')
+      return this.ejecutar(() => cancelarConConfirmacion(this.consulta), 'No se pudo cancelar la consulta.')
     },
     /** Ejecuta una acción y actualiza la vista con la consulta que devuelve el backend. */
     async ejecutar(accion, respaldo) {
       this.procesando = true
       try {
-        const res = await accion()
-        this.consulta = res.data
-        this.nuevoEstado = ''
+        // Las acciones devuelven la respuesta HTTP o, si el usuario no confirmó, null.
+        const resultado = await accion()
+        const actualizada = resultado?.data ?? resultado
+        if (actualizada) {
+          this.consulta = actualizada
+          this.nuevoEstado = ''
+        }
       } catch (e) {
         alert(mensajeError(e, respaldo))
       } finally {
@@ -144,7 +150,5 @@ export default {
   color: #666;
   flex-shrink: 0;
 }
-.error { color: #d32f2f; }
 .sin-acciones { margin-top: 20px; font-size: 13px; color: #666; }
-.tag-baja { font-size: 11px; color: #721c24; background: #f8d7da; border-radius: 8px; padding: 1px 6px; margin-left: 4px; }
 </style>
