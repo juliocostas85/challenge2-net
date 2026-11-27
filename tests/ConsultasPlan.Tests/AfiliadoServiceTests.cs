@@ -13,7 +13,7 @@ public class AfiliadoServiceTests : IDisposable
 
     public AfiliadoServiceTests()
     {
-        _servicio = new AfiliadoService(_db.Context, new RelojFijo(Ahora));
+        _servicio = Servicios.Afiliados(_db, new RelojFijo(Ahora));
     }
 
     private static AfiliadoRequest Pedido(string dni) => new()

@@ -3,6 +3,7 @@ using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Domain;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services.Agendamiento;
 
 namespace ConsultasPlan.Services;
 
@@ -21,11 +22,13 @@ public class ConsultaService : IConsultaService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
+    private readonly IReadOnlyList<IReglaAgendamiento> _reglas;
 
-    public ConsultaService(AppDbContext context, TimeProvider tiempo)
+    public ConsultaService(AppDbContext context, TimeProvider tiempo, IEnumerable<IReglaAgendamiento> reglas)
     {
         _context = context;
         _tiempo = tiempo;
+        _reglas = reglas.ToList();
     }
 
     private DateTime Ahora => _tiempo.AhoraLocal();
@@ -60,29 +63,18 @@ public class ConsultaService : IConsultaService
         if (afiliado == null)
             return Resultado<Consulta>.NoEncontrado("Afiliado no encontrado.");
 
-        if (!afiliado.IsActive)
-            return Resultado<Consulta>.Invalido("El afiliado está dado de baja.");
-
-        if (afiliado.Bloqueado)
-            return Resultado<Consulta>.Invalido("El afiliado se encuentra bloqueado para agendar consultas.");
-
-        var profesionalExiste = await _context.Profesionales.AnyAsync(p => p.Id == consulta.ProfesionalId);
-        if (!profesionalExiste)
+        var profesional = await _context.Profesionales.FindAsync(consulta.ProfesionalId);
+        if (profesional == null)
             return Resultado<Consulta>.NoEncontrado("Profesional no encontrado.");
 
-        var consultaConflicto = await _context.Consultas.AnyAsync(c =>
-            c.ProfesionalId == consulta.ProfesionalId &&
-            c.FechaHora == consulta.FechaHora &&
-            c.Estado != EstadoConsulta.Cancelado);
-        if (consultaConflicto)
-            return Resultado<Consulta>.Invalido("El profesional ya tiene una consulta en ese horario.");
-
-        var afiliadoOcupado = await _context.Consultas.AnyAsync(c =>
-            c.AfiliadoId == consulta.AfiliadoId &&
-            c.FechaHora == consulta.FechaHora &&
-            c.Estado != EstadoConsulta.Cancelado);
-        if (afiliadoOcupado)
-            return Resultado<Consulta>.Invalido("El afiliado ya tiene una consulta en ese horario.");
+        // Reglas de negocio del agendamiento (habilitación, horarios, cupos...). Cada una es una clase
+        // registrada en el contenedor: agregar una regla no requiere modificar este servicio.
+        var solicitud = new SolicitudAgendamiento(consulta, afiliado, profesional);
+        foreach (var regla in _reglas)
+        {
+            var error = await regla.ValidarAsync(solicitud);
+            if (error != null) return Resultado<Consulta>.Invalido(error);
+        }
 
         consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;

@@ -13,7 +13,7 @@ public class ConsultaServiceTests : IDisposable
 
     public ConsultaServiceTests()
     {
-        _servicio = new ConsultaService(_db.Context, new RelojFijo(Ahora));
+        _servicio = Servicios.Consultas(_db, new RelojFijo(Ahora));
     }
 
     private static CrearConsultaRequest Pedido(int afiliadoId, int profesionalId, DateTime fechaHora) => new()
@@ -153,7 +153,7 @@ public class ConsultaServiceTests : IDisposable
     public async Task FechaHora_con_zona_horaria_se_guarda_en_hora_local()
     {
         var argentina = TimeZoneInfo.CreateCustomTimeZone("AR", TimeSpan.FromHours(-3), "AR", "AR");
-        var servicio = new ConsultaService(_db.Context, new RelojFijo(Ahora, argentina));
+        var servicio = Servicios.Consultas(_db, new RelojFijo(Ahora, argentina));
         var afiliado = _db.AgregarAfiliado();
         var profesional = _db.AgregarProfesional();
         var utc = new DateTime(2026, 6, 20, 13, 0, 0, DateTimeKind.Utc);
