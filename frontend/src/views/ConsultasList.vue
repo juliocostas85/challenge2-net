@@ -52,7 +52,8 @@
 
 <script>
 import { consultasApi, mensajeError } from '../services/api'
-import { puedeCancelar, formatFecha } from '../utils/consultas'
+import { puedeCancelar } from '../utils/consultas'
+import { formatFecha } from '../utils/fechas'
 
 export default {
   name: 'ConsultasList',

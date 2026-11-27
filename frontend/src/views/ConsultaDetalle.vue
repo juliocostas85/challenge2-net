@@ -49,7 +49,8 @@
 
 <script>
 import { consultasApi, mensajeError } from '../services/api'
-import { estadosPosibles, puedeCancelar, puedeRegistrarAtencion, puedeMarcarInasistencia, formatFecha } from '../utils/consultas'
+import { esActiva, estadosPosibles, puedeCancelar, puedeRegistrarAtencion, puedeMarcarInasistencia } from '../utils/consultas'
+import { formatFecha } from '../utils/fechas'
 
 export default {
   name: 'ConsultaDetalle',
@@ -67,7 +68,7 @@ export default {
       return this.consulta ? estadosPosibles(this.consulta) : []
     },
     motivoSinAcciones() {
-      return ['Pendiente', 'Confirmado'].includes(this.consulta.estado)
+      return esActiva(this.consulta)
         ? 'Faltan menos de 24 h para la consulta: ya no puede cancelarse. Cuando ocurra se podrá registrar la atención o la inasistencia.'
         : `La consulta está en estado ${this.consulta.estado} y no admite más cambios.`
     }
