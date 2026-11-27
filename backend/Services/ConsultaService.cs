@@ -16,6 +16,12 @@ public interface IConsultaService
     Task<Resultado<Consulta>> MarcarInasistenciaAsync(int id);
     Task<Resultado<Consulta>> RegistrarAtencionAsync(int id);
     Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado);
+
+    /// <summary>
+    /// Cancela las consultas futuras Pendientes o Confirmadas de un afiliado dado de baja.
+    /// Devuelve cuántas se cancelaron.
+    /// </summary>
+    Task<int> CancelarFuturasPorBajaAsync(int afiliadoId);
 }
 
 public class ConsultaService : IConsultaService
@@ -94,6 +100,26 @@ public class ConsultaService : IConsultaService
 
     public Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado) =>
         CambiarEstadoAsync(id, estado);
+
+    /// <summary>
+    /// Cancelación del sistema por baja del afiliado: respeta el ciclo de vida pero no la anticipación
+    /// de 24 h, que es una regla para las cancelaciones del afiliado (ver ConsultaTransiciones).
+    /// </summary>
+    public async Task<int> CancelarFuturasPorBajaAsync(int afiliadoId)
+    {
+        var ahora = Ahora;
+        var cancelables = (await _context.Consultas
+                .Where(c => c.AfiliadoId == afiliadoId && c.FechaHora > ahora)
+                .ToListAsync())
+            .Where(c => ConsultaTransiciones.PuedeCancelarsePorBaja(c, ahora))
+            .ToList();
+
+        foreach (var consulta in cancelables)
+            consulta.Estado = EstadoConsulta.Cancelado;
+
+        await _context.SaveChangesAsync();
+        return cancelables.Count;
+    }
 
     /// <summary>
     /// Único punto donde cambia el estado de una consulta: todas las operaciones aplican

@@ -17,5 +17,5 @@ public static class Servicios
         new(db.Context, reloj, Reglas(db));
 
     public static AfiliadoService Afiliados(BaseDeDatosEnMemoria db, TimeProvider reloj) =>
-        new(db.Context, reloj);
+        new(db.Context, reloj, Consultas(db, reloj));
 }

@@ -1,7 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
-using ConsultasPlan.Domain;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Models;
 
@@ -20,11 +19,13 @@ public class AfiliadoService : IAfiliadoService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
+    private readonly IConsultaService _consultas;
 
-    public AfiliadoService(AppDbContext context, TimeProvider tiempo)
+    public AfiliadoService(AppDbContext context, TimeProvider tiempo, IConsultaService consultas)
     {
         _context = context;
         _tiempo = tiempo;
+        _consultas = consultas;
     }
 
     private DateTime Ahora => _tiempo.AhoraLocal();
@@ -86,16 +87,13 @@ public class AfiliadoService : IAfiliadoService
         var afiliado = await _context.Afiliados.FindAsync(id);
         if (afiliado == null) return Resultado<Afiliado>.NoEncontrado();
 
-        var ahora = Ahora;
-        var consultasFuturas = await _context.Consultas
-            .Where(c => c.AfiliadoId == id && c.FechaHora > ahora)
-            .ToListAsync();
-
-        foreach (var consulta in consultasFuturas.Where(c => ConsultaTransiciones.PuedeCancelarsePorBaja(c, ahora)))
-            consulta.Estado = EstadoConsulta.Cancelado;
-
+        // Las consultas las cancela su propio servicio (dueño del ciclo de vida); la transacción
+        // garantiza que la baja y las cancelaciones se apliquen juntas o no se aplique ninguna.
+        await using var transaccion = await _context.Database.BeginTransactionAsync();
+        await _consultas.CancelarFuturasPorBajaAsync(id);
         afiliado.IsActive = false;
-        await _context.SaveChangesAsync(); // baja y cancelaciones en una única transacción
+        await _context.SaveChangesAsync();
+        await transaccion.CommitAsync();
         return Resultado<Afiliado>.Ok(afiliado);
     }
 
