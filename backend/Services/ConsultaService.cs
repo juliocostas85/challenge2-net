@@ -28,11 +28,7 @@ public class ConsultaService : IConsultaService
         _tiempo = tiempo;
     }
 
-    /// <summary>
-    /// Hora local de la clínica. Las fechas de consulta llegan desde el frontend como hora local
-    /// (input datetime-local, sin zona), por lo que todas las comparaciones se hacen en hora local.
-    /// </summary>
-    private DateTime Ahora => _tiempo.GetLocalNow().DateTime;
+    private DateTime Ahora => _tiempo.AhoraLocal();
 
     public Task<List<Consulta>> ObtenerTodasAsync() =>
         _context.Consultas

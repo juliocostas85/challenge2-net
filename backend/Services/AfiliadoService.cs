@@ -27,11 +27,7 @@ public class AfiliadoService : IAfiliadoService
         _tiempo = tiempo;
     }
 
-    /// <summary>
-    /// Hora local de la clínica. Las fechas de consulta llegan desde el frontend como hora local
-    /// (input datetime-local, sin zona), por lo que todas las comparaciones se hacen en hora local.
-    /// </summary>
-    private DateTime Ahora => _tiempo.GetLocalNow().DateTime;
+    private DateTime Ahora => _tiempo.AhoraLocal();
 
     /// <summary>Solo afiliados activos. Los dados de baja se conservan para preservar su historial.</summary>
     public Task<List<Afiliado>> ObtenerTodosAsync() =>
