@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Services;
+using ConsultasPlan.Services.Agendamiento;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddSingleton(TimeProvider.System);
+// Reglas de agendamiento: se aplican en el orden en que se registran.
+builder.Services.AddScoped<IReglaAgendamiento, AfiliadoHabilitado>();
+builder.Services.AddScoped<IReglaAgendamiento, HorarioProfesionalDisponible>();
+builder.Services.AddScoped<IReglaAgendamiento, HorarioAfiliadoDisponible>();
 builder.Services.AddScoped<IConsultaService, ConsultaService>();
 builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();
