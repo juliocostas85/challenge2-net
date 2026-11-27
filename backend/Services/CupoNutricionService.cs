@@ -3,45 +3,55 @@ using Microsoft.Extensions.Options;
 using ConsultasPlan.Data;
 using ConsultasPlan.Domain;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services.Agendamiento;
 
 namespace ConsultasPlan.Services;
 
-/// <summary>Aplica la política de cupo de nutrición sobre el historial de consultas guardado.</summary>
-public interface ICupoNutricionService
+/// <summary>Consulta del cupo de nutrición (la usan las respuestas de afiliados).</summary>
+public interface IConsultaCupoNutricion
 {
-    bool Aplica(ModalidadConsulta modalidad, Profesional profesional);
-
-    /// <summary>Null si el afiliado puede agendar una consulta de nutrición presencial en esa fecha; si no, el motivo.</summary>
-    Task<string?> ValidarAsync(int afiliadoId, DateTime fechaHora);
-
-    /// <summary>Estado del cupo de varios afiliados en el año y mes de <paramref name="referencia"/>.</summary>
-    Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerEstadoAsync(IReadOnlyCollection<int> afiliadoIds, DateTime referencia);
+    /// <summary>Estado del cupo de cada afiliado pedido, en el año y mes actuales.</summary>
+    Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerEstadoActualAsync(IReadOnlyCollection<int> afiliadoIds);
 }
 
-public class CupoNutricionService : ICupoNutricionService
+/// <summary>
+/// Aplica la política de cupo de nutrición (Domain/CupoNutricionPolicy) sobre el historial guardado.
+/// Expone dos interfaces separadas según quién la usa (ISP):
+///  - IReglaAgendamiento: ConsultaService la aplica al agendar, como cualquier otra regla.
+///  - IConsultaCupoNutricion: el listado de afiliados informa el cupo disponible.
+/// </summary>
+public class CupoNutricionService : IReglaAgendamiento, IConsultaCupoNutricion
 {
     private readonly AppDbContext _context;
+    private readonly TimeProvider _tiempo;
     private readonly CupoNutricionOptions _opciones;
 
-    public CupoNutricionService(AppDbContext context, IOptions<CupoNutricionOptions> opciones)
+    public CupoNutricionService(AppDbContext context, TimeProvider tiempo, IOptions<CupoNutricionOptions> opciones)
     {
         _context = context;
+        _tiempo = tiempo;
         _opciones = opciones.Value;
     }
 
-    public bool Aplica(ModalidadConsulta modalidad, Profesional profesional) =>
-        CupoNutricionPolicy.Aplica(modalidad, profesional.Especialidad, _opciones);
-
-    public async Task<string?> ValidarAsync(int afiliadoId, DateTime fechaHora)
+    /// <summary>
+    /// Se valida solo al agendar: el ciclo de vida no permite reactivar una consulta cancelada,
+    /// así que ninguna otra operación puede aumentar el consumo.
+    /// </summary>
+    public async Task<string?> ValidarAsync(SolicitudAgendamiento solicitud)
     {
-        var fechas = await FechasQueConsumenAsync([afiliadoId], fechaHora.Year);
-        return CupoNutricionPolicy.Validar(fechas.Select(f => f.FechaHora), fechaHora, _opciones);
+        var consulta = solicitud.Consulta;
+        if (!CupoNutricionPolicy.Aplica(consulta.Modalidad, solicitud.Profesional.Especialidad, _opciones))
+            return null;
+
+        var fechas = await FechasQueConsumenAsync([consulta.AfiliadoId], consulta.FechaHora.Year);
+        return CupoNutricionPolicy.Validar(fechas.Select(f => f.FechaHora), consulta.FechaHora, _opciones);
     }
 
-    public async Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerEstadoAsync(IReadOnlyCollection<int> afiliadoIds, DateTime referencia)
+    public async Task<IReadOnlyDictionary<int, EstadoCupo>> ObtenerEstadoActualAsync(IReadOnlyCollection<int> afiliadoIds)
     {
-        var porAfiliado = (await FechasQueConsumenAsync(afiliadoIds, referencia.Year)).ToLookup(f => f.AfiliadoId, f => f.FechaHora);
-        return afiliadoIds.ToDictionary(id => id, id => CupoNutricionPolicy.Calcular(porAfiliado[id], referencia, _opciones));
+        var ahora = _tiempo.AhoraLocal();
+        var porAfiliado = (await FechasQueConsumenAsync(afiliadoIds, ahora.Year)).ToLookup(f => f.AfiliadoId, f => f.FechaHora);
+        return afiliadoIds.ToDictionary(id => id, id => CupoNutricionPolicy.Calcular(porAfiliado[id], ahora, _opciones));
     }
 
     /// <summary>

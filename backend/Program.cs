@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ConsultasPlan.Data;
 using ConsultasPlan.Domain;
 using ConsultasPlan.Services;
+using ConsultasPlan.Services.Agendamiento;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +11,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<CupoNutricionOptions>(builder.Configuration.GetSection(CupoNutricionOptions.Seccion));
-builder.Services.AddScoped<ICupoNutricionService, CupoNutricionService>();
+builder.Services.AddScoped<CupoNutricionService>();
+builder.Services.AddScoped<IConsultaCupoNutricion>(sp => sp.GetRequiredService<CupoNutricionService>());
+// Reglas de agendamiento: se aplican en el orden en que se registran.
+builder.Services.AddScoped<IReglaAgendamiento, AfiliadoHabilitado>();
+builder.Services.AddScoped<IReglaAgendamiento, HorarioProfesionalDisponible>();
+builder.Services.AddScoped<IReglaAgendamiento, HorarioAfiliadoDisponible>();
+builder.Services.AddScoped<IReglaAgendamiento>(sp => sp.GetRequiredService<CupoNutricionService>());
 builder.Services.AddScoped<IConsultaService, ConsultaService>();
 builder.Services.AddScoped<IAfiliadoService, AfiliadoService>();
 builder.Services.AddScoped<ICatalogoService, CatalogoService>();

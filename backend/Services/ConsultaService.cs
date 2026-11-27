@@ -3,6 +3,7 @@ using ConsultasPlan.Data;
 using ConsultasPlan.Dtos;
 using ConsultasPlan.Domain;
 using ConsultasPlan.Models;
+using ConsultasPlan.Services.Agendamiento;
 
 namespace ConsultasPlan.Services;
 
@@ -15,26 +16,28 @@ public interface IConsultaService
     Task<Resultado<Consulta>> MarcarInasistenciaAsync(int id);
     Task<Resultado<Consulta>> RegistrarAtencionAsync(int id);
     Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado);
+
+    /// <summary>
+    /// Cancela las consultas futuras Pendientes o Confirmadas de un afiliado dado de baja.
+    /// Devuelve cuántas se cancelaron.
+    /// </summary>
+    Task<int> CancelarFuturasPorBajaAsync(int afiliadoId);
 }
 
 public class ConsultaService : IConsultaService
 {
     private readonly AppDbContext _context;
     private readonly TimeProvider _tiempo;
-    private readonly ICupoNutricionService _cupo;
+    private readonly IReadOnlyList<IReglaAgendamiento> _reglas;
 
-    public ConsultaService(AppDbContext context, TimeProvider tiempo, ICupoNutricionService cupo)
+    public ConsultaService(AppDbContext context, TimeProvider tiempo, IEnumerable<IReglaAgendamiento> reglas)
     {
         _context = context;
         _tiempo = tiempo;
-        _cupo = cupo;
+        _reglas = reglas.ToList();
     }
 
-    /// <summary>
-    /// Hora local de la clínica. Las fechas de consulta llegan desde el frontend como hora local
-    /// (input datetime-local, sin zona), por lo que todas las comparaciones se hacen en hora local.
-    /// </summary>
-    private DateTime Ahora => _tiempo.GetLocalNow().DateTime;
+    private DateTime Ahora => _tiempo.AhoraLocal();
 
     public Task<List<Consulta>> ObtenerTodasAsync() =>
         _context.Consultas
@@ -66,38 +69,19 @@ public class ConsultaService : IConsultaService
         if (afiliado == null)
             return Resultado<Consulta>.NoEncontrado("Afiliado no encontrado.");
 
-        if (!afiliado.IsActive)
-            return Resultado<Consulta>.Invalido("El afiliado está dado de baja.");
-
-        if (afiliado.Bloqueado)
-            return Resultado<Consulta>.Invalido("El afiliado se encuentra bloqueado para agendar consultas.");
-
         var profesional = await _context.Profesionales.FindAsync(consulta.ProfesionalId);
         if (profesional == null)
             return Resultado<Consulta>.NoEncontrado("Profesional no encontrado.");
 
-        var consultaConflicto = await _context.Consultas.AnyAsync(c =>
-            c.ProfesionalId == consulta.ProfesionalId &&
-            c.FechaHora == consulta.FechaHora &&
-            c.Estado != EstadoConsulta.Cancelado);
-        if (consultaConflicto)
-            return Resultado<Consulta>.Invalido("El profesional ya tiene una consulta en ese horario.");
-
-        var afiliadoOcupado = await _context.Consultas.AnyAsync(c =>
-            c.AfiliadoId == consulta.AfiliadoId &&
-            c.FechaHora == consulta.FechaHora &&
-            c.Estado != EstadoConsulta.Cancelado);
-        if (afiliadoOcupado)
-            return Resultado<Consulta>.Invalido("El afiliado ya tiene una consulta en ese horario.");
-
-        // Política de cupo de nutrición. Se valida solo al crear: el ciclo de vida no permite
-        // reactivar una consulta cancelada, así que ninguna otra operación puede aumentar el consumo.
-        if (_cupo.Aplica(consulta.Modalidad, profesional))
+        // Reglas de negocio del agendamiento (habilitación, horarios, cupos...). Cada una es una clase
+        // registrada en el contenedor: agregar una regla no requiere modificar este servicio.
+        var solicitud = new SolicitudAgendamiento(consulta, afiliado, profesional);
+        foreach (var regla in _reglas)
         {
-            var errorCupo = await _cupo.ValidarAsync(consulta.AfiliadoId, consulta.FechaHora);
-            if (errorCupo != null)
-                return Resultado<Consulta>.Invalido(errorCupo);
+            var error = await regla.ValidarAsync(solicitud);
+            if (error != null) return Resultado<Consulta>.Invalido(error);
         }
+
 
         consulta.FechaCreacion = Ahora;
         consulta.Estado = EstadoConsulta.Pendiente;
@@ -117,6 +101,26 @@ public class ConsultaService : IConsultaService
 
     public Task<Resultado<Consulta>> ActualizarEstadoAsync(int id, EstadoConsulta estado) =>
         CambiarEstadoAsync(id, estado);
+
+    /// <summary>
+    /// Cancelación del sistema por baja del afiliado: respeta el ciclo de vida pero no la anticipación
+    /// de 24 h, que es una regla para las cancelaciones del afiliado (ver ConsultaTransiciones).
+    /// </summary>
+    public async Task<int> CancelarFuturasPorBajaAsync(int afiliadoId)
+    {
+        var ahora = Ahora;
+        var cancelables = (await _context.Consultas
+                .Where(c => c.AfiliadoId == afiliadoId && c.FechaHora > ahora)
+                .ToListAsync())
+            .Where(c => ConsultaTransiciones.PuedeCancelarsePorBaja(c, ahora))
+            .ToList();
+
+        foreach (var consulta in cancelables)
+            consulta.Estado = EstadoConsulta.Cancelado;
+
+        await _context.SaveChangesAsync();
+        return cancelables.Count;
+    }
 
     /// <summary>
     /// Único punto donde cambia el estado de una consulta: todas las operaciones aplican

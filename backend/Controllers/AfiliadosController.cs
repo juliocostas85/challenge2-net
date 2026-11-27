@@ -10,17 +10,19 @@ namespace ConsultasPlan.Controllers;
 public class AfiliadosController : ControllerBase
 {
     private readonly IAfiliadoService _afiliados;
+    private readonly IConsultaCupoNutricion _cupo;
 
-    public AfiliadosController(IAfiliadoService afiliados)
+    public AfiliadosController(IAfiliadoService afiliados, IConsultaCupoNutricion cupo)
     {
         _afiliados = afiliados;
+        _cupo = cupo;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AfiliadoResponse>>> GetAll()
     {
         var afiliados = await _afiliados.ObtenerTodosAsync();
-        var cupos = await _afiliados.ObtenerCupoNutricionAsync(afiliados.Select(a => a.Id).ToList());
+        var cupos = await _cupo.ObtenerEstadoActualAsync(afiliados.Select(a => a.Id).ToList());
         return Ok(afiliados.Select(a => a.ToResponse(cupos[a.Id])));
     }
 
@@ -58,7 +60,7 @@ public class AfiliadosController : ControllerBase
 
     private async Task<AfiliadoResponse> ConCupoAsync(Afiliado afiliado)
     {
-        var cupos = await _afiliados.ObtenerCupoNutricionAsync([afiliado.Id]);
+        var cupos = await _cupo.ObtenerEstadoActualAsync([afiliado.Id]);
         return afiliado.ToResponse(cupos[afiliado.Id]);
     }
 }

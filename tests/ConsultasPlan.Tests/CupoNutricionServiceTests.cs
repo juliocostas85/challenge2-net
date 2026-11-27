@@ -145,7 +145,7 @@ public class CupoNutricionServiceTests : IDisposable
         var sinNada = _db.AgregarAfiliado("30000002");
         Historial(conDos, EstadoConsulta.Atendido, new DateTime(2026, 3, 10, 10, 0, 0), new DateTime(2026, 11, 2, 10, 0, 0));
 
-        var estados = await Servicios.Cupo(_db).ObtenerEstadoAsync([conDos.Id, sinNada.Id], Ahora);
+        var estados = await Servicios.Cupo(_db, new RelojFijo(Ahora)).ObtenerEstadoActualAsync([conDos.Id, sinNada.Id]);
 
         Assert.Equal(4, estados[conDos.Id].Disponibles);
         Assert.True(estados[conDos.Id].UsadaEnMes);
