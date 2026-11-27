@@ -49,10 +49,7 @@
 import { consultasApi, afiliadosApi, profesionalesApi, mensajeError } from '../services/api'
 import { validarNuevaConsulta, MODALIDADES } from '../utils/consultas'
 import { aDatetimeLocal } from '../utils/fechas'
-
-/** Compara especialidades sin tildes ni mayúsculas, igual que el backend. */
-const normalizar = (texto) => (texto ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toUpperCase()
-const esNutricion = (profesional) => normalizar(profesional?.especialidad) === 'NUTRICION'
+import { avisoCupo } from '../utils/cupo'
 
 export default {
   name: 'ConsultaNueva',
@@ -80,26 +77,9 @@ export default {
     profesional() {
       return this.profesionales.find(p => p.id === Number(this.form.profesionalId))
     },
-    /**
-     * Aviso según el cupo del afiliado (año y mes en curso, tal como lo informa el backend).
-     * Para otros meses o años solo se informa: el backend valida con la fecha elegida.
-     */
+    /** Aviso de cupo de nutrición (utils/cupo.js): informa al operador; quien valida es el backend. */
     avisoCupo() {
-      if (!this.afiliado || !esNutricion(this.profesional)) return null
-      if (this.form.modalidad !== 'Presencial')
-        return { tipo: 'info', texto: 'Las consultas de nutrición virtuales no consumen el cupo del plan.' }
-
-      const cupo = this.afiliado.cupoNutricion
-      if (!cupo) return null
-      const fecha = this.form.fechaHora ? new Date(this.form.fechaHora) : null
-      const mismoAnio = !fecha || fecha.getFullYear() === cupo.anio
-      const mismoMes = fecha && mismoAnio && fecha.getMonth() === new Date().getMonth()
-
-      if (mismoAnio && cupo.disponibles === 0)
-        return { tipo: 'alerta', texto: `El afiliado ya usó las ${cupo.maximo} consultas de nutrición presenciales de ${cupo.anio}. La consulta será rechazada.` }
-      if (mismoMes && cupo.usadaEsteMes)
-        return { tipo: 'alerta', texto: 'El afiliado ya tiene una consulta de nutrición presencial este mes (máximo 1 por mes). Elegí otro mes.' }
-      return { tipo: 'info', texto: `Cupo de nutrición ${cupo.anio}: ${cupo.disponibles} de ${cupo.maximo} consultas presenciales disponibles (máximo 1 por mes).` }
+      return avisoCupo({ afiliado: this.afiliado, profesional: this.profesional, modalidad: this.form.modalidad, fechaHora: this.form.fechaHora })
     }
   },
   async mounted() {
