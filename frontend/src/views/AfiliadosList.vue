@@ -2,9 +2,8 @@
   <div>
     <h2>Afiliados</h2>
 
-    <p v-if="cargando">Cargando afiliados...</p>
-    <p v-else-if="errorCarga" class="error">{{ errorCarga }}</p>
-    <table v-else-if="afiliados.length">
+    <EstadoCarga :cargando="cargando" :error="errorCarga" texto-cargando="Cargando afiliados...">
+    <table v-if="afiliados.length">
       <thead>
         <tr>
           <th>#</th>
@@ -40,14 +39,17 @@
       </tbody>
     </table>
     <p v-else>No hay afiliados registrados.</p>
+    </EstadoCarga>
   </div>
 </template>
 
 <script>
 import { afiliadosApi, mensajeError } from '../services/api'
+import EstadoCarga from '../components/EstadoCarga.vue'
 
 export default {
   name: 'AfiliadosList',
+  components: { EstadoCarga },
   data() {
     return {
       afiliados: [],
@@ -88,7 +90,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-.error { color: #d32f2f; }
-</style>
